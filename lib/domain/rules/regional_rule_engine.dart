@@ -16,7 +16,7 @@ import '../templates/resume_template.dart';
 /// none of them has to know about specific countries.
 ///
 /// Precedence is deliberate and always the same:
-///   user's explicit choice > regional convention > neutral default.
+/// **user's explicit choice > regional convention > neutral default.**
 /// The app never silently overrides something the user switched on; it
 /// explains the convention instead, and that explanation is what
 /// [advisories] carries.
@@ -42,8 +42,8 @@ class FormatPlan {
 
   final String regionId;
 
-  /// Sections that will actually be printed, in order: visible, ordered by
-  /// the region's convention, and containing something.
+  /// Sections that will actually be printed: visible, ordered by the region's
+  /// convention, and containing something.
   final List<SectionKey> printedSections;
 
   /// Sections the user has not switched on that this market would consider
@@ -53,6 +53,7 @@ class FormatPlan {
   final List<SectionKey> requiredSections;
   final List<SectionKey> discouragedSections;
 
+  /// What the document will show, after the user's choices are applied.
   final bool showPhoto;
   final bool showSensitiveFields;
 
@@ -68,27 +69,13 @@ class FormatPlan {
   final String documentLanguage;
   final List<String> acceptedDocumentLanguages;
 
-  /// `true` when a convention is worth surfacing but must not block the user.
   bool get hasAdvisories => advisories.isNotEmpty;
 
-  static const FormatPlan neutral = FormatPlan(
-    regionId: 'international',
-    printedSections: <SectionKey>[],
-    addableSections: <SectionKey>[],
-    requiredSections: <SectionKey>[],
-    discouragedSections: <SectionKey>[],
-    showPhoto: false,
-    showSensitiveFields: false,
-    paperSize: PaperSize.a4,
-    dateSystem: DateSystem.gregorian,
-    dateSystemOptions: <DateSystem>[DateSystem.gregorian],
-    dateFormat: 'MM/YYYY',
-    page: PageGuidance(),
-    ats: AtsPolicy(),
-    advisories: <RegionalAdvisory>[],
-    documentLanguage: 'en',
-    acceptedDocumentLanguages: <String>['en'],
-  );
+  /// `true` when the section is printed but the market would rather it were
+  /// not — the builder shows a gentle note, never an automatic removal.
+  bool isDiscouraged(SectionKey key) => discouragedSections.contains(key);
+
+  bool isRequired(SectionKey key) => requiredSections.contains(key);
 }
 
 /// Turns a [RegionalProfile] plus a [Resume] into a [FormatPlan].
@@ -103,21 +90,21 @@ abstract final class RegionalRuleEngine {
     ResumeTemplate? template,
     DateSystem? dateSystemOverride,
   }) {
-    // Order: the region's conventional order wins over the CV type default,
-    // because the same CV type is laid out differently in Berlin and Boston.
-    final List<SectionKey> base = profile.sections.order.isNotEmpty
-        ? _mergeOrder(profile.sections.order, resume, template)
-        : resume.effectiveSections;
-
-    final List<SectionKey> ordered = _mergeOrder(base, resume, template);
+    final List<SectionKey> ordered = resolveSectionOrder(
+      profile: profile,
+      resume: resume,
+      template: template,
+    );
 
     final List<SectionKey> printed = ordered
         .where((SectionKey k) => !resume.hiddenSections.contains(k))
-        .where((SectionKey k) => k == SectionKey.personal || resume.content.hasContentFor(k))
+        .where((SectionKey k) =>
+            k == SectionKey.personal || resume.content.hasContentFor(k))
         .toList(growable: false);
 
-    // Suggested additions: what this market would normally expect that the
-    // user has not switched on. Personal details are never suggested.
+    // What the market expects that the user has not switched on. Offered,
+    // never enabled: adding a section the user did not ask for is exactly the
+    // kind of silent edit the brief forbids.
     final List<SectionKey> suggested = <SectionKey>[
       ...profile.sections.required,
       ...profile.sections.recommended,
@@ -127,27 +114,19 @@ abstract final class RegionalRuleEngine {
         .toSet()
         .toList(growable: false);
 
-    final PersonalInfo personal = resume.content.personal;
-    final PhotoExpectation photoPolicy = profile.photo.policy;
-
-    // The user's switch is final. The rules only decide the *default* it
-    // starts from, and whether to warn about it.
-    final bool showPhoto = personal.showPhoto;
-    final bool showSensitive =
-        personal.showSensitiveFields && profile.personalInfo.showSensitiveByDefault;
-
     return FormatPlan(
       regionId: profile.id,
       printedSections: printed,
       addableSections: suggested,
       requiredSections: profile.sections.required,
       discouragedSections: profile.sections.discouraged,
-      showPhoto: showPhoto,
-      showSensitiveFields: showSensitive,
+      showPhoto: resume.content.personal.showPhoto,
+      showSensitiveFields: resume.content.personal.showSensitiveFields &&
+          profile.personalInfo.showSensitiveByDefault,
       paperSize: resume.paperSize,
-      // The user's own calendar preference wins over the market's, because a
-      // Persian speaker applying in Germany may still want to read their own
-      // dates. Presentation only: storage is always ISO Gregorian.
+      // The user's own calendar preference wins over the market's: a Persian
+      // speaker applying in Germany may still want to read their own dates.
+      // Presentation only — storage is always ISO Gregorian.
       dateSystem: dateSystemOverride ?? profile.dateSystem,
       dateSystemOptions: profile.dateSystemOptions.isEmpty
           ? const <DateSystem>[DateSystem.gregorian]
@@ -155,21 +134,55 @@ abstract final class RegionalRuleEngine {
       dateFormat: profile.dateFormat,
       page: profile.page,
       ats: profile.ats,
-      advisories: _advisoriesFor(
+      advisories: advisoriesFor(
         profile: profile,
         resume: resume,
         template: template,
-        photoPolicy: photoPolicy,
       ),
       documentLanguage: profile.documentLanguage,
       acceptedDocumentLanguages: profile.acceptedDocumentLanguages,
     );
   }
 
+  /// The order sections should be printed in.
+  ///
+  /// A template with a fixed order wins, because its layout depends on it;
+  /// otherwise the market's conventional order leads and anything the user
+  /// switched on that the market did not mention is appended, so nothing they
+  /// enabled can silently vanish from the document.
+  static List<SectionKey> resolveSectionOrder({
+    required RegionalProfile profile,
+    required Resume resume,
+    ResumeTemplate? template,
+  }) {
+    final List<SectionKey> userOrder = resume.effectiveSections;
+    final List<SectionKey>? forced = template?.forcedSectionOrder;
+    final List<SectionKey> base;
+    if (forced != null && forced.isNotEmpty) {
+      base = <SectionKey>[
+        ...forced,
+        ...userOrder.where((SectionKey k) => !forced.contains(k)),
+      ];
+    } else if (profile.sections.order.isNotEmpty) {
+      base = <SectionKey>[
+        ...profile.sections.order,
+        ...userOrder.where((SectionKey k) => !profile.sections.order.contains(k)),
+      ];
+    } else {
+      base = userOrder;
+    }
+
+    final List<SectionKey> result =
+        base.where((SectionKey k) => k != SectionKey.personal).toList();
+    result.insert(0, SectionKey.personal);
+    return result.toSet().toList(growable: false);
+  }
+
   /// The default section set for a new document in a market.
   ///
   /// Used when a CV is created, so a German CV opens with a Lebenslauf-shaped
-  /// skeleton and a US resume opens with a one-page one.
+  /// skeleton and a US resume opens with a one-page one, without the user
+  /// having to rearrange anything.
   static List<SectionKey> seedOrder({
     required CvType cvType,
     required RegionCode region,
@@ -179,82 +192,41 @@ abstract final class RegionalRuleEngine {
         Resume.defaultSectionOrder(cvType, region);
     if (profile.sections.order.isEmpty) return typeDefault;
 
-    final List<SectionKey> merged = <SectionKey>[
+    return <SectionKey>[
       ...profile.sections.order,
       ...typeDefault.where((SectionKey k) => !profile.sections.order.contains(k)),
       ...profile.sections.required.where(
-        (SectionKey k) => !profile.sections.order.contains(k) && !typeDefault.contains(k),
+        (SectionKey k) =>
+            !profile.sections.order.contains(k) && !typeDefault.contains(k),
       ),
-    ];
-    return merged.toSet().toList(growable: false);
+    ].toSet().toList(growable: false);
   }
 
-  /// A document's starting paper size, before the user overrides it.
-  static PaperSize defaultPaperSize(RegionalProfile profile) => profile.paperSize;
-
-  /// A document's starting date system, before the user overrides it.
-  ///
-  /// Iran offers both calendars; the document defaults to the region's own
-  /// primary one, and the user can switch per document.
-  static DateSystem defaultDateSystem(RegionalProfile profile) =>
-      profile.dateSystem;
-
-  // ── internals ────────────────────────────────────────────────────────────
-
-  /// Combines a rule-supplied order with the sections the user actually has
-  /// switched on.
-  ///
-  /// A template with a fixed order (an ATS template, for instance) takes
-  /// precedence, because its layout depends on it. Everything else keeps the
-  /// rules' order and appends the rest so nothing the user enabled can
-  /// silently disappear from the document.
-  static List<SectionKey> _mergeOrder(
-    List<SectionKey> base,
-    Resume resume,
-    ResumeTemplate? template,
-  ) {
-    final List<SectionKey>? forced = template?.forcedSectionOrder;
-    if (forced != null && forced.isNotEmpty) {
-      return <SectionKey>[
-        ...forced,
-        ...base.where((SectionKey k) => !forced.contains(k)),
-      ];
-    }
-
-    final List<SectionKey> userOrder = resume.effectiveSections;
-    final List<SectionKey> merged = <SectionKey>[
-      ...base,
-      ...userOrder.where((SectionKey k) => !base.contains(k)),
-    ];
-    return merged.where((SectionKey k) => k != SectionKey.personal).toList()
-      ..insert(0, SectionKey.personal);
-  }
-
-  /// Convention notes worth showing: only where the user's document diverges
-  /// from a market norm, so the panel stays quiet when there is nothing to
-  /// say.
-  static List<RegionalAdvisory> _advisoriesFor({
+  /// Convention notes worth showing: only where the document diverges from a
+  /// market norm, so the panel stays quiet when there is nothing to say.
+  static List<RegionalAdvisory> advisoriesFor({
     required RegionalProfile profile,
     required Resume resume,
-    required ResumeTemplate? template,
-    required PhotoExpectation photoPolicy,
+    ResumeTemplate? template,
   }) {
     final List<RegionalAdvisory> out = <RegionalAdvisory>[];
+    final PersonalInfo personal = resume.content.personal;
 
-    if (resume.content.personal.showPhoto &&
-        photoPolicy != PhotoExpectation.expected) {
+    if (personal.showPhoto &&
+        profile.photo.policy != PhotoExpectation.expected) {
       out.add(RegionalAdvisory(
-        code: photoPolicy == PhotoExpectation.forbidden
+        code: profile.photo.policy == PhotoExpectation.forbidden
             ? 'regional.photoForbidden'
             : 'regional.photoNotExpected',
-        severity: photoPolicy == PhotoExpectation.discouraged ? 'medium' : 'low',
+        severity:
+            profile.photo.policy == PhotoExpectation.discouraged ? 'medium' : 'low',
         text: profile.photo.note.isNotEmpty
             ? profile.photo.note
             : 'A photo is not usually included for this market.',
       ));
     }
 
-    if (resume.content.personal.showSensitiveFields &&
+    if (personal.showSensitiveFields &&
         !profile.personalInfo.showSensitiveByDefault) {
       out.add(RegionalAdvisory(
         code: 'regional.personalDetails',
@@ -273,7 +245,7 @@ abstract final class RegionalRuleEngine {
         code: 'regional.atsStrictMarket',
         severity: 'medium',
         text: 'Employers in this market often screen applications with '
-            'software. A simpler layout parses more reliably.',
+            'software, so a simpler layout parses more reliably.',
       ));
     }
 

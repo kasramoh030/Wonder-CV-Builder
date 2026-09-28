@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_spacing.dart';
 
-/// A selectable row used by every onboarding picker.
+/// A large, tappable option row used by onboarding and the market picker.
 ///
-/// Built as a "radio card" rather than a list of radios because the target
-/// here is a phone held one-handed: the whole row is the hit target, which
-/// comfortably clears the 48dp minimum.
+/// Selection is shown with three signals at once — border, tint and a check —
+/// so it survives a colour-blind user, a low-contrast screen and a glance.
 class ChoiceCard extends StatelessWidget {
   const ChoiceCard({
     required this.title,
@@ -16,7 +15,6 @@ class ChoiceCard extends StatelessWidget {
     this.leading,
     this.trailing,
     this.compact = false,
-    this.enabled = true,
     super.key,
   });
 
@@ -25,29 +23,29 @@ class ChoiceCard extends StatelessWidget {
   final Widget? leading;
   final Widget? trailing;
   final bool selected;
-  final bool compact;
-  final bool enabled;
   final VoidCallback onTap;
+
+  /// Denser variant for long lists such as the fifteen document types.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final Color border =
-        selected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant;
-    final Color background = selected
-        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
-        : theme.colorScheme.surface;
+    final ColorScheme colors = theme.colorScheme;
+    final BorderRadius radius = AppRadius.mdAll;
 
     return Semantics(
-      selected: selected,
       button: true,
-      enabled: enabled,
+      selected: selected,
+      label: subtitle == null ? title : '$title. $subtitle',
       child: Material(
-        color: background,
-        borderRadius: AppRadius.mdAll,
+        color: selected
+            ? colors.primaryContainer.withValues(alpha: 0.45)
+            : colors.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: radius,
         child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: AppRadius.mdAll,
+          onTap: onTap,
+          borderRadius: radius,
           child: AnimatedContainer(
             duration: AppMotion.fast,
             curve: AppMotion.standard,
@@ -56,10 +54,10 @@ class ChoiceCard extends StatelessWidget {
               vertical: compact ? AppSpacing.md : AppSpacing.lg,
             ),
             decoration: BoxDecoration(
-              borderRadius: AppRadius.mdAll,
+              borderRadius: radius,
               border: Border.all(
-                color: border,
-                width: selected ? 1.8 : 1,
+                color: selected ? colors.primary : colors.outlineVariant,
+                width: selected ? 1.6 : 1,
               ),
             ),
             child: Row(
@@ -71,36 +69,41 @@ class ChoiceCard extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Text(title, style: theme.textTheme.titleSmall),
-                      if (subtitle != null) ...<Widget>[
+                      Text(
+                        title,
+                        style: (compact
+                                ? theme.textTheme.bodyLarge
+                                : theme.textTheme.titleMedium)
+                            ?.copyWith(
+                          fontWeight:
+                              selected ? FontWeight.w600 : FontWeight.w500,
+                        ),
+                      ),
+                      if (subtitle != null && subtitle!.isNotEmpty) ...<Widget>[
                         const SizedBox(height: AppSpacing.xxs),
                         Text(
                           subtitle!,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                            color: colors.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                trailing ??
-                    AnimatedSwitcher(
-                      duration: AppMotion.instant,
-                      child: selected
-                          ? Icon(
-                              Icons.check_circle_rounded,
-                              key: const ValueKey<String>('selected'),
-                              color: theme.colorScheme.primary,
-                            )
-                          : Icon(
-                              Icons.circle_outlined,
-                              key: const ValueKey<String>('unselected'),
-                              color: theme.colorScheme.outline,
-                            ),
+                if (trailing != null) trailing!,
+                if (trailing == null)
+                  AnimatedOpacity(
+                    duration: AppMotion.fast,
+                    opacity: selected ? 1 : 0,
+                    child: Icon(
+                      Icons.check_circle_rounded,
+                      size: 20,
+                      color: colors.primary,
                     ),
+                  ),
               ],
             ),
           ),

@@ -50,7 +50,21 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate code (drift, json_serializable)
-        run: dart run build_runner build --delete-conflicting-outputs
+        id: codegen
+        continue-on-error: true
+        run: |
+          set +e
+          dart run build_runner build --delete-conflicting-outputs > /tmp/gen.txt 2>&1
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          tail -c 20000 /tmp/gen.txt
+          {
+            echo "### build_runner (exit $code)"
+            echo '```'
+            tail -c 40000 /tmp/gen.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
 
       - name: Static analysis
         id: analyze
@@ -92,19 +106,29 @@ jobs:
       # the build diagnostics readable through the ordinary contents API,
       # which is what both CI triage and the remote coding agent use.
       - name: Publish diagnostics as a commit comment
-        if: steps.analyze.outputs.exit_code != '0' || steps.tests.outputs.exit_code != '0'
+        if: always() && (steps.codegen.outputs.exit_code != '0' || steps.analyze.outputs.exit_code != '0' || steps.tests.outputs.exit_code != '0')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
+          gen_code="${{ steps.codegen.outputs.exit_code }}"
           analyze_code="${{ steps.analyze.outputs.exit_code }}"
           test_code="${{ steps.tests.outputs.exit_code }}"
           {
             echo "## CI diagnostics for ${GITHUB_SHA:0:7}"
             echo
+            echo "* build_runner exit: ${gen_code}"
             echo "* flutter analyze exit: ${analyze_code}"
             echo "* flutter test exit: ${test_code}"
             echo
+            if [ "$gen_code" != "0" ]; then
+              echo "<details open><summary>build_runner</summary>"
+              echo
+              echo '```'
+              tail -c 24000 /tmp/gen.txt || true
+              echo '```'
+              echo "</details>"
+            fi
             if [ "$analyze_code" != "0" ]; then
               echo "<details open><summary>flutter analyze</summary>"
               echo
@@ -131,9 +155,10 @@ jobs:
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
             -d "$payload" > /dev/null
 
-      - name: Fail if analysis or tests failed
-        if: steps.analyze.outputs.exit_code != '0' || steps.tests.outputs.exit_code != '0'
+      - name: Fail if codegen, analysis or tests failed
+        if: steps.codegen.outputs.exit_code != '0' || steps.analyze.outputs.exit_code != '0' || steps.tests.outputs.exit_code != '0'
         run: |
+          echo "codegen exit: ${{ steps.codegen.outputs.exit_code }}"
           echo "analyze exit: ${{ steps.analyze.outputs.exit_code }}"
           echo "test exit: ${{ steps.tests.outputs.exit_code }}"
           exit 1
