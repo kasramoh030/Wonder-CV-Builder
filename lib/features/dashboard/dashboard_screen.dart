@@ -10,8 +10,6 @@ import '../../core/widgets/empty_state.dart';
 import '../../domain/entities/app_settings.dart';
 import '../../domain/entities/resume.dart';
 import '../../domain/enums/cv_type.dart';
-import '../../domain/enums/industry.dart';
-import '../../domain/enums/region_code.dart';
 import '../../l10n/app_localizations.dart';
 import '../onboarding/onboarding_steps.dart';
 import '../settings/settings_providers.dart';
@@ -124,7 +122,7 @@ class _QuickActions extends ConsumerWidget {
                 onTap: () => _open(
                   context,
                   ref,
-                  (String id) => AppRoutes.analyserPath(id),
+                  AppRoutes.analyserPath,
                   l10n,
                 ),
               ),
@@ -142,7 +140,7 @@ class _QuickActions extends ConsumerWidget {
                 onTap: () => _open(
                   context,
                   ref,
-                  (String id) => AppRoutes.jobMatchPath(id),
+                  AppRoutes.jobMatchPath,
                   l10n,
                 ),
               ),

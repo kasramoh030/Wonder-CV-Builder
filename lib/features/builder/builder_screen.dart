@@ -236,8 +236,8 @@ class _SectionsPane extends ConsumerWidget {
       children: <Widget>[
         TextField(
           controller: null,
-          onChanged: (String value) =>
-              ref.read(resumeEditorProvider(resumeId).notifier).setTitle(value),
+          onChanged:
+              ref.read(resumeEditorProvider(resumeId).notifier).setTitle,
           decoration: InputDecoration(
             labelText: l10n.builderTitle,
             helperText: l10n.builderAutosaved,
@@ -283,12 +283,10 @@ class _SectionsPane extends ConsumerWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: visible.length,
-          onReorder: (int from, int to) {
-            final int target = to > from ? to - 1 : to;
-            ref
-                .read(resumeEditorProvider(resumeId).notifier)
-                .moveSection(from, target);
-          },
+          // onReorderItem already reports the index the item lands on, so
+          // the old "shrink the target when moving down" dance is not needed.
+          onReorderItem:
+              ref.read(resumeEditorProvider(resumeId).notifier).moveSection,
           itemBuilder: (BuildContext context, int index) {
             final SectionKey key = visible[index];
             final bool hasContent = resume.content.hasContentFor(key);
@@ -445,7 +443,7 @@ class _DesignPane extends ConsumerWidget {
             ])
               DropdownMenuItem<String?>(value: family, child: Text(family)),
           ],
-          onChanged: (String? family) => editor.setFontFamily(family),
+          onChanged: editor.setFontFamily,
         ),
         const SizedBox(height: AppSpacing.lg),
         SegmentedButton<PaperSize>(

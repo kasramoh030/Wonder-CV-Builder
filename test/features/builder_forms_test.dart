@@ -111,7 +111,7 @@ void main() {
               expect(f.read(entry), <String>['first', 'second'],
                   reason: '${key.id}/${f.label}');
             case DateEntryField f:
-              final YearMonth date = YearMonth(2024, 6);
+              const YearMonth date = YearMonth(2024, 6);
               entry = f.write(entry, date);
               expect(f.read(entry)?.year, 2024, reason: '${key.id}/${f.label}');
               entry = f.write(entry, null);
@@ -147,7 +147,7 @@ void main() {
       // Awards and achievements are one collection in the model, so adding
       // one must be visible from both sections rather than from neither.
       final ResumeContent content = ResumeContent.empty.copyWith(
-        awards: <Award>[Award(id: 'a', title: 'Prize')],
+        awards: const <Award>[Award(id: 'a', title: 'Prize')],
       );
       expect(content.hasContentFor(SectionKey.awards), isTrue);
       expect(content.hasContentFor(SectionKey.achievements), isTrue);

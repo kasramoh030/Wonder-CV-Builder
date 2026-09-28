@@ -45,16 +45,24 @@ class PdfExportService {
   /// rather than a database id, and sanitised because a name can legitimately
   /// contain characters a file system will not accept.
   String fileNameFor(Resume resume) {
-    final String name = resume.content.personal.fullName.trim().isEmpty
-        ? resume.title
-        : resume.content.personal.fullName;
-    final String safe = name
-        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '')
-        .replaceAll(RegExp(r'\s+'), '_')
-        .trim();
-    final String base = safe.isEmpty ? 'CV' : safe;
+    // The candidate's name is what a recruiter looks for in a downloads
+    // folder; the document title is the fallback, and "CV" the last resort.
+    final String fromName = _safeFileBase(resume.content.personal.fullName);
+    final String fromTitle = _safeFileBase(resume.title);
+    final String base = fromName.isNotEmpty
+        ? fromName
+        : (fromTitle.isNotEmpty ? fromTitle : 'CV');
     return '$base.pdf';
   }
+
+  /// Reduces a label to characters every file system accepts: separators and
+  /// reserved characters become single underscores, and no underscore is left
+  /// dangling at either end (so a blank label really is blank).
+  static String _safeFileBase(String raw) => raw
+      .replaceAll(RegExp(r'[\\/:*?"<>|]'), ' ')
+      .replaceAll(RegExp(r'\s+'), '_')
+      .replaceAll(RegExp(r'_+'), '_')
+      .replaceAll(RegExp(r'^_+|_+$'), '');
 
   /// Writes the PDF into the app's documents directory.
   ///
