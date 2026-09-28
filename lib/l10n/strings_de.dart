@@ -838,4 +838,8 @@ class StringsDe extends AppLocalizations {
   String get unitWords => 'Wörter';
   @override
   String get unitCharacters => 'Zeichen';
+  @override
+  String get unitBullets => 'Stichpunkte';
+  @override
+  String get statsQuantified => 'mit Zahl';
 }

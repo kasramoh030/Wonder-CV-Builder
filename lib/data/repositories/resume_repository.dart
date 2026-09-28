@@ -164,6 +164,8 @@ abstract interface class ResumeRepository {
 
   Stream<List<JobDescriptionInfo>> watchJobDescriptions({String? resumeId});
 
+  Future<void> deleteJobDescription(String id);
+
   // ── exports ──────────────────────────────────────────────────────────────
   Future<void> recordExport({
     required String resumeId,
@@ -511,6 +513,14 @@ class DriftResumeRepository implements ResumeRepository {
           ),
           mode: InsertMode.insertOrReplace,
         );
+  }
+
+  @override
+  @override
+  Future<void> deleteJobDescription(String id) async {
+    await (_db.delete(_db.jobDescriptions)
+          ..where((JobDescriptions t) => t.id.equals(id)))
+        .go();
   }
 
   @override

@@ -489,6 +489,8 @@ abstract class AppLocalizations {
   String get unitPages;
   String get unitWords;
   String get unitCharacters;
+  String get unitBullets;
+  String get statsQuantified;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

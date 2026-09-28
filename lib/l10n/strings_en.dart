@@ -830,4 +830,8 @@ class StringsEn extends AppLocalizations {
   String get unitWords => 'words';
   @override
   String get unitCharacters => 'characters';
+  @override
+  String get unitBullets => 'bullets';
+  @override
+  String get statsQuantified => 'state a number';
 }

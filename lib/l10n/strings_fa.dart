@@ -834,4 +834,8 @@ class StringsFa extends AppLocalizations {
   String get unitWords => 'واژه';
   @override
   String get unitCharacters => 'نویسه';
+  @override
+  String get unitBullets => 'بولت';
+  @override
+  String get statsQuantified => 'دارای عدد';
 }
