@@ -53,11 +53,12 @@ class RegionalRulesRepository {
           debugPrintStack(stackTrace: stack);
           return true;
         }());
-        final RegionalProfile fallback = const RegionalProfile(id: 'international');
+        const RegionalProfile fallback = RegionalProfile(id: 'international');
         _cache[region] = fallback;
         return fallback;
       } finally {
-        _inFlight.remove(region);
+        // Nothing awaits the removed future: the caller already holds it.
+        unawaited(_inFlight.remove(region));
       }
     });
   }

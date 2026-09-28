@@ -128,6 +128,16 @@ enum SeniorityLevel {
     SeniorityLevel.academic => 'academic',
   };
 
+  /// `null` when [id] is absent or unrecognised, so callers can distinguish
+  /// "the advert states no level" from "the advert states a level we know".
+  static SeniorityLevel? fromIdOrNull(String? id) {
+    if (id == null || id.isEmpty) return null;
+    for (final SeniorityLevel level in SeniorityLevel.values) {
+      if (level.id == id) return level;
+    }
+    return null;
+  }
+
   static SeniorityLevel fromId(String id) => SeniorityLevel.values.firstWhere(
         (SeniorityLevel s) => s.id == id,
         orElse: () => SeniorityLevel.mid,

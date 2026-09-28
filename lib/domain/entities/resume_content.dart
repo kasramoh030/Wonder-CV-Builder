@@ -83,6 +83,13 @@ class PersonalInfo {
 
   bool get hasContact => email.isNotEmpty || phone.isNotEmpty;
 
+  /// City, province and country as one printed line, skipping what is empty.
+  /// Iran's profile asks for the province, most others do not, so the line
+  /// has to tolerate any combination.
+  String get locationLine => <String>[city, province, country]
+      .where((String s) => s.trim().isNotEmpty)
+      .join(', ');
+
   /// Ordered list of contact fragments that templates and the analyser can
   /// render without knowing about each individual field.
   List<String> get contactFragments => <String>[
@@ -190,6 +197,11 @@ class Experience {
 
   /// All free text belonging to this entry, used by the analyser.
   List<String> get allBullets => <String>[...responsibilities, ...achievements];
+
+  /// Technologies on one line, for the compact template rows.
+  String get technologyLine => technologies
+      .where((String t) => t.trim().isNotEmpty)
+      .join(' · ');
 
   Experience copyWith({
     String? company,
