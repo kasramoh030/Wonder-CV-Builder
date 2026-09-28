@@ -69,7 +69,8 @@ class CvTextIndex {
 
   static CvTextIndex of(Resume resume, {Set<SectionKey>? hiddenSections}) {
     final ResumeContent c = resume.content;
-    final Set<SectionKey> hidden = hiddenSections ?? resume.hiddenSections;
+    final Set<SectionKey> hidden =
+        hiddenSections ?? resume.hiddenSections.toSet();
     final List<String> lines = <String>[];
     final List<String> bullets = <String>[];
     final Map<SectionKey, String> bySection = <SectionKey, String>{};

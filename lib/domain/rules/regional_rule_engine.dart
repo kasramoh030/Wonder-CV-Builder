@@ -192,14 +192,14 @@ abstract final class RegionalRuleEngine {
         Resume.defaultSectionOrder(cvType, region);
     if (profile.sections.order.isEmpty) return typeDefault;
 
-    return <SectionKey>[
+    return <SectionKey>{
       ...profile.sections.order,
       ...typeDefault.where((SectionKey k) => !profile.sections.order.contains(k)),
       ...profile.sections.required.where(
         (SectionKey k) =>
             !profile.sections.order.contains(k) && !typeDefault.contains(k),
       ),
-    ].toSet().toList(growable: false);
+    }.toList(growable: false);
   }
 
   /// Convention notes worth showing: only where the document diverges from a

@@ -241,17 +241,17 @@ void main() {
       final RegionalProfile profile = bundle(RegionCode.germany);
       final Resume resume = resumeFor(RegionCode.germany, CvType.professionalCv)
           .copyWith(
-        content: ResumeContent(
-          personal: const PersonalInfo(firstName: 'Lena', lastName: 'Kruger'),
+        content: const ResumeContent(
+          personal: PersonalInfo(firstName: 'Lena', lastName: 'Kruger'),
           experiences: <Experience>[
-            const Experience(
+            Experience(
               id: 'e1',
               company: 'Siemens',
               jobTitle: 'Engineer',
               startDate: YearMonth(2020, 1),
             ),
           ],
-          skills: const <Skill>[Skill(id: 's1', name: 'CAD')],
+          skills: <Skill>[Skill(id: 's1', name: 'CAD')],
         ),
       );
 
@@ -267,11 +267,11 @@ void main() {
       final Resume resume = resumeFor(RegionCode.germany, CvType.professionalCv)
           .copyWith(
         sectionOrder: <SectionKey>[SectionKey.personal, SectionKey.experience],
-        hiddenSections: const <SectionKey>[],
-        content: ResumeContent(
-          personal: const PersonalInfo(firstName: 'Otto', lastName: 'Bauer'),
+        hiddenSections: <SectionKey>[],
+        content: const ResumeContent(
+          personal: PersonalInfo(firstName: 'Otto', lastName: 'Bauer'),
           experiences: <Experience>[
-            const Experience(id: 'e1', company: 'Bosch', jobTitle: 'Techniker'),
+            Experience(id: 'e1', company: 'Bosch', jobTitle: 'Techniker'),
           ],
         ),
       );

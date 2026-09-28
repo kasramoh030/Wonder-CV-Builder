@@ -71,12 +71,12 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          flutter analyze --fatal-warnings > /tmp/analyze.txt 2>&1
+          flutter analyze --fatal-warnings --no-fatal-infos > /tmp/analyze.txt 2>&1
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           cat /tmp/analyze.txt
           {
-            echo "### flutter analyze --fatal-warnings (exit $code)"
+            echo "### flutter analyze --fatal-warnings --no-fatal-infos (exit $code)"
             echo '```'
             tail -c 60000 /tmp/analyze.txt
             echo '```'

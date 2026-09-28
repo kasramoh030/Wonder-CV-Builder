@@ -32,7 +32,7 @@ class ChoiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colors = theme.colorScheme;
-    final BorderRadius radius = AppRadius.mdAll;
+    const BorderRadius radius = AppRadius.mdAll;
 
     return Semantics(
       button: true,
@@ -93,7 +93,7 @@ class ChoiceCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (trailing != null) trailing!,
+                ?trailing,
                 if (trailing == null)
                   AnimatedOpacity(
                     duration: AppMotion.fast,

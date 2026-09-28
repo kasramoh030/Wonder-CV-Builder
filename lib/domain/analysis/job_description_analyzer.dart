@@ -47,12 +47,12 @@ class JobDescriptionAnalyzer {
     'responsibilities', 'requirements', 'qualifications', 'skills',
     'knowledge', 'understanding', 'environment', 'culture', 'benefits',
     'salary', 'equal', 'please', 'team', 'teams', 'people', 'person',
-    'successful', 'relevant', 'related', 'degree', 'field', 'plus',
+    'successful', 'relevant', 'related', 'degree', 'field',
     'aufgaben', 'anforderungen', 'wir', 'sie', 'und', 'oder', 'mit', 'für',
     'das', 'der', 'die', 'den', 'dem', 'eine', 'einen', 'als', 'bei', 'aus',
     'werden', 'wird', 'sind', 'ist', 'haben', 'hat', 'kann', 'können', 'uns',
     'unser', 'unserer', 'stelle', 'stellen', 'bereich', 'kenntnisse',
-    'erfahrung', 'aufgaben', 'profil', 'ihre', 'ihrer', 'auch', 'sowie',
+    'erfahrung', 'profil', 'ihre', 'ihrer', 'auch', 'sowie',
     'زمینه', 'شرکت', 'موقعیت', 'شغل', 'نیاز', 'دارد', 'حداقل', 'حداکثر',
     'آگهی', 'استخدام', 'باشد', 'توانایی', 'آشنا', 'مسلط', 'داشتن', 'کار',
     'برای', 'این', 'های', 'مورد', 'تمام', 'سایر', 'همکاری', 'تیم',
@@ -218,7 +218,7 @@ class JobDescriptionAnalyzer {
       explanation: <String, String>{
         'keywords': 'Your CV mentions ${found.length} of ${pool.length} '
             'terms that stand out in this advert '
-            '(${keywordScore}% overlap).',
+            '($keywordScore% overlap).',
         'skills': requirements.requiredSkills.isEmpty
             ? 'The advert does not list explicit required skills.'
             : '${found.where(requirements.requiredSkills.contains).length} of '

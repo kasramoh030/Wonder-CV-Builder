@@ -121,7 +121,7 @@ class AnalyzerVocabulary {
       'with', 'you', 'your',
       'der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen',
       'einem', 'eines', 'und', 'oder', 'aber', 'mit', 'von', 'zu', 'zum',
-      'zur', 'in', 'im', 'auf', 'für', 'als', 'bei', 'aus', 'nach', 'über',
+      'zur', 'im', 'auf', 'für', 'als', 'bei', 'aus', 'nach', 'über',
       'ist', 'sind', 'war', 'waren', 'wird', 'werden', 'ich',
       'و', 'در', 'به', 'از', 'که', 'را', 'این', 'آن', 'با', 'برای', 'بر',
       'است', 'هست', 'بود', 'شد', 'شده', 'می', 'یک', 'تا', 'یا', 'اما',

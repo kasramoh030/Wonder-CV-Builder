@@ -65,7 +65,6 @@ class AnalyzerEngine {
 
   AnalysisReport analyse(AnalysisRequest request) {
     final Resume resume = request.resume;
-    final ResumeContent content = resume.content;
     final CvTextIndex index = CvTextIndex.of(resume);
     final ResumeStats stats = _measureStats(resume, index);
     final bool academic = resume.cvType.isAcademic || index.looksAcademic();
@@ -99,7 +98,7 @@ class AnalyzerEngine {
       recommendations: findings,
       atsChecks: _atsChecks(request),
       stats: stats,
-      keywords: request.jobMatch?.keywords,
+      keywords: request.jobMatch?.keywordDetail,
       strengths: _strengths(index, stats, findings),
       createdAt: DateTime.now(),
       regionId: request.profile.id,
@@ -157,7 +156,7 @@ class AnalyzerEngine {
   /// first-page allowance for the header block. The PDF engine reports the
   /// true count after a render and that value wins.
   double _estimatePages(Resume resume, CvTextIndex index) {
-    final int charsPerLine = 92;
+    const int charsPerLine = 92;
     final int linesPerPage = resume.paperSize == PaperSize.usLetter ? 44 : 48;
     final int bodyChars = index.bySection.entries
         .where((MapEntry<SectionKey, String> e) => e.key != SectionKey.personal)
@@ -230,7 +229,7 @@ class AnalyzerEngine {
     }
 
     if (c.experiences.where((Experience e) => !e.hidden).isEmpty && !academic) {
-      out.add(const Recommendation(
+      out.add(Recommendation(
         code: 'content.noExperience',
         priority: resume.cvType.isEarlyCareer
             ? IssuePriority.medium
@@ -241,7 +240,7 @@ class AnalyzerEngine {
     }
 
     if (c.education.where((Education e) => !e.hidden).isEmpty) {
-      out.add(const Recommendation(
+      out.add(Recommendation(
         code: 'content.noEducation',
         priority: resume.cvType.isEarlyCareer
             ? IssuePriority.high
@@ -333,7 +332,7 @@ class AnalyzerEngine {
     for (int i = 1; i < visible.length; i++) {
       final YearMonth? previous = visible[i - 1].startDate;
       final YearMonth? current = visible[i].startDate;
-      if (previous != null && current != null && current.isAfter(previous)) {
+      if (previous != null && current != null && current > previous) {
         out.add(const Recommendation(
           code: 'structure.experienceOrder',
           priority: IssuePriority.low,
@@ -350,7 +349,8 @@ class AnalyzerEngine {
     if (!academic && visible.length >= 2) {
       final List<Experience> sorted = List<Experience>.of(visible)
         ..sort((Experience a, Experience b) =>
-            (b.startDate ?? YearMonth(1, 1)).compareTo(a.startDate ?? YearMonth(1, 1)));
+            (b.startDate ?? const YearMonth(1, 1))
+                .compareTo(a.startDate ?? const YearMonth(1, 1)));
       for (int i = 1; i < sorted.length; i++) {
         final YearMonth? end = sorted[i - 1].startDate;
         final YearMonth? start = sorted[i].endDate;
@@ -620,7 +620,7 @@ class AnalyzerEngine {
       ));
     }
 
-    if (index.words.length > 0) {
+    if (index.words.isNotEmpty) {
       final int nonAscii = index.rawText.runes
           .where((int r) => r > 0x2500 && r < 0x1F000)
           .length;
@@ -878,7 +878,7 @@ class AnalyzerEngine {
         passed: index.headings.length >= 3,
         detail: '${index.headings.length}',
       ),
-      AtsCheck(
+      const AtsCheck(
         code: 'ats.searchableText',
         // The PDF engine always embeds a real text layer; this documents the
         // guarantee rather than testing it.
