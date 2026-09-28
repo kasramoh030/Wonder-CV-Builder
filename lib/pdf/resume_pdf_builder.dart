@@ -563,14 +563,15 @@ class ResumePdfBuilder {
       case SectionKey.keySkills:
         return _inlineList(c.keySkills, tokens, separator: ' · ');
 
-      case SectionKey.additionalInfo:
+      case SectionKey.custom:
         return <pw.Widget>[
           for (final CustomSection s
               in c.customSections.where((CustomSection s) => !s.hidden))
             ..._customSection(request, tokens, s),
-          if (c.additionalInfo.trim().isNotEmpty)
-            ..._paragraphs(<String>[c.additionalInfo], tokens),
         ];
+
+      case SectionKey.additionalInfo:
+        return _paragraphs(<String>[c.additionalInfo], tokens);
 
       case SectionKey.militaryService:
         return _paragraphs(<String>[c.militaryService], tokens);
