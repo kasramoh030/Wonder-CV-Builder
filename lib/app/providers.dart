@@ -13,7 +13,6 @@ import '../domain/entities/job_description.dart';
 import '../domain/entities/regional_profile.dart';
 import '../domain/entities/resume.dart';
 import '../domain/enums/document_options.dart';
-import '../domain/enums/region_code.dart';
 import '../domain/rules/regional_rule_engine.dart';
 import '../domain/templates/resume_template.dart';
 import 'providers_jobs.dart';

@@ -155,7 +155,7 @@ class YearMonthField extends StatelessWidget {
   /// dialog returns a sentinel for the clear case rather than collapsing it
   /// into the `null` that a dismissed route also returns. Collapsing them
   /// silently deleted end dates when a user tapped outside the dialog.
-  static final YearMonth _cleared = YearMonth(0);
+  static const YearMonth _cleared = YearMonth(0);
 
   Future<void> _pick(BuildContext context) async {
     final AppLocalizations l10n = AppLocalizations.of(context);

@@ -199,7 +199,6 @@ class StringsFa extends AppLocalizations {
 
   // ── Sections ─────────────────────────────────────────────────────────────
   @override
-  @override
   String get presentLabel => 'تاکنون';
 
   @override
@@ -383,10 +382,15 @@ class StringsFa extends AppLocalizations {
   String get fieldPublisher => 'نشریه / ناشر';
   @override
   String get fieldMonth => 'ماه';
+  @override
   String get fieldYear => 'سال';
+  @override
   String get fieldCategory => 'دسته‌بندی';
+  @override
   String get fieldRelationship => 'نسبت';
+  @override
   String get fieldAuthors => 'نویسندگان';
+  @override
   String get fieldDoi => 'شناسه DOI';
   @override
   String get fieldReferenceName => 'نام';
@@ -472,8 +476,11 @@ class StringsFa extends AppLocalizations {
   String get paperLetter => 'US Letter (۸.۵ × ۱۱ اینچ)';
   @override
   String get pdfWarningPhotoMissing => 'عکس شما به این فایل پیوست نشده است.';
+  @override
   String get pdfWarningPhotoWithAts => 'این بازار برای رزومهٔ خوانده‌شده با ATS عکس انتظار ندارد.';
+  @override
   String get pdfWarningLongerThanConvention => 'بلندتر از طول معمول برای این بازار.';
+  @override
   String get exportFileName => 'نام فایل';
   @override
   String get exportIncludeLinks => 'درج لینک‌های قابل کلیک';

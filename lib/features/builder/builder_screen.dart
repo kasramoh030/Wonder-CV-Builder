@@ -252,7 +252,10 @@ class _SectionsPane extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.md),
-            Text('${l10n.builderProgress} ${visible.length == 0 ? 0 : (filled * 100 ~/ visible.length)}%'),
+            Text(
+              '${l10n.builderProgress} '
+              '${visible.isEmpty ? 0 : (filled * 100 ~/ visible.length)}%',
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.xl),

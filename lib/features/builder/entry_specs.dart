@@ -81,7 +81,7 @@ class ChoiceEntryField<T> extends EntryField {
   final Object Function(Object entry, T value) write;
 }
 
-EntryField textOf<E>(
+EntryField textOf<E extends Object>(
   String label,
   String Function(E entry) read,
   E Function(E entry, String value) write, {
@@ -94,7 +94,7 @@ EntryField textOf<E>(
       multiline: multiline,
     );
 
-EntryField linesOf<E>(
+EntryField linesOf<E extends Object>(
   String label,
   List<String> Function(E entry) read,
   E Function(E entry, List<String> value) write,
@@ -105,7 +105,7 @@ EntryField linesOf<E>(
       write: (Object e, List<String> v) => write(e as E, v),
     );
 
-EntryField dateOf<E>(
+EntryField dateOf<E extends Object>(
   String label,
   YearMonth? Function(E entry) read,
   E Function(E entry, YearMonth? value) write,
@@ -116,7 +116,7 @@ EntryField dateOf<E>(
       write: (Object e, YearMonth? v) => write(e as E, v),
     );
 
-EntryField switchOf<E>(
+EntryField switchOf<E extends Object>(
   String label,
   bool Function(E entry) read,
   E Function(E entry, bool value) write,
@@ -127,7 +127,7 @@ EntryField switchOf<E>(
       write: (Object e, bool v) => write(e as E, v),
     );
 
-EntryField choiceOf<E, T>(
+EntryField choiceOf<E extends Object, T>(
   String label,
   List<T> values,
   String Function(T value) labelOf,

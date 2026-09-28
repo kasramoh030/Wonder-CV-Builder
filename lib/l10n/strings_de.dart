@@ -199,7 +199,6 @@ class StringsDe extends AppLocalizations {
 
   // ── Sections ─────────────────────────────────────────────────────────────
   @override
-  @override
   String get presentLabel => 'heute';
 
   @override
@@ -383,10 +382,15 @@ class StringsDe extends AppLocalizations {
   String get fieldPublisher => 'Zeitschrift / Verlag';
   @override
   String get fieldMonth => 'Monat';
+  @override
   String get fieldYear => 'Jahr';
+  @override
   String get fieldCategory => 'Kategorie';
+  @override
   String get fieldRelationship => 'Verhältnis';
+  @override
   String get fieldAuthors => 'Autoren';
+  @override
   String get fieldDoi => 'DOI';
   @override
   String get fieldReferenceName => 'Name';
@@ -472,8 +476,11 @@ class StringsDe extends AppLocalizations {
   String get paperLetter => 'US Letter (8,5 × 11 Zoll)';
   @override
   String get pdfWarningPhotoMissing => 'Ihr Foto ist dieser Datei nicht beigefügt.';
+  @override
   String get pdfWarningPhotoWithAts => 'Dieser Markt erwartet kein Foto in einem ATS-erfassten Lebenslauf.';
+  @override
   String get pdfWarningLongerThanConvention => 'Länger als für diesen Markt üblich.';
+  @override
   String get exportFileName => 'Dateiname';
   @override
   String get exportIncludeLinks => 'Klickbare Links einfügen';

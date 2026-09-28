@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
 import '../../domain/entities/resume.dart';
@@ -63,7 +64,7 @@ class PdfExportService {
   Future<File> save(ResumePdfResult result, String fileName) async {
     final Directory documents = await getApplicationDocumentsDirectory();
     final Directory exports = Directory('${documents.path}/exports');
-    if (!await exports.exists()) {
+    if (!exports.existsSync()) {
       await exports.create(recursive: true);
     }
     final File file = File('${exports.path}/$fileName');
@@ -87,11 +88,13 @@ class PdfExportService {
   /// losing an export over a deleted image would be worse than a CV without
   /// one. This is also why the path is validated here rather than trusted.
   Future<Uint8List?> _photoBytes(Resume resume, FormatPlan plan) async {
-    final String path = resume.content.personal.photoPath;
+    // `photoPath` is nullable in the model — a document may simply have no
+    // photo — so it is normalised here rather than dereferenced later.
+    final String path = resume.content.personal.photoPath ?? '';
     if (!plan.showPhoto || path.isEmpty) return null;
     try {
       final File file = File(path);
-      if (!await file.exists()) return null;
+      if (!file.existsSync()) return null;
       return await file.readAsBytes();
     } on Object {
       return null;

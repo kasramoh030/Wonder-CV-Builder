@@ -553,7 +553,7 @@ class _RecordEditorState extends State<_RecordEditor> {
             onChanged: (bool value) =>
                 setState(() => _draft = f.write(_draft, value)),
           ),
-        ChoiceEntryField f => EditorChoiceField<Object?>(
+        ChoiceEntryField<Object?> f => EditorChoiceField<Object?>(
             label: f.label,
             value: f.read(_draft),
             values: f.values.cast<Object?>(),
