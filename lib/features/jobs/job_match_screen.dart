@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -6,6 +7,7 @@ import '../../app/providers_jobs.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../core/widgets/empty_state.dart';
+import '../../data/repositories/resume_repository.dart';
 import '../../domain/analysis/job_description_analyzer.dart';
 import '../../domain/entities/analysis_report.dart';
 import '../../domain/entities/job_description.dart';
@@ -81,9 +83,9 @@ class _JobMatchScreenState extends ConsumerState<JobMatchScreen> {
               alignLabelWithHint: true,
               border: const OutlineInputBorder(),
             ),
-            onChanged: (String value) => ref
+            onChanged: ref
                 .read(jobMatchControllerProvider(widget.resumeId).notifier)
-                .setAdvert(value),
+                .setAdvert,
           ),
           const SizedBox(height: AppSpacing.md),
           Row(

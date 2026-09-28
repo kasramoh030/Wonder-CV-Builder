@@ -66,7 +66,15 @@ class SwitchEntryField extends EntryField {
   final Object Function(Object entry, bool value) write;
 }
 
-class ChoiceEntryField<T> extends EntryField {
+/// A fixed set of options, edited as a dropdown.
+///
+/// The value type is erased to [Object] here on purpose. A generic
+/// `ChoiceEntryField<SkillLevel>` would give its [write] the runtime type
+/// `(Object, SkillLevel) => Skill`, which is *not* assignable to
+/// `(Object, Object?) => Object` — so the moment anything handled all choice
+/// fields uniformly, as the editor and the tests do, the cast would fail at
+/// runtime. `choiceOf` keeps the typed surface and does the check once.
+class ChoiceEntryField extends EntryField {
   const ChoiceEntryField(
     super.label, {
     required this.values,
@@ -75,10 +83,10 @@ class ChoiceEntryField<T> extends EntryField {
     required this.write,
   });
 
-  final List<T> values;
-  final String Function(T value) labelOf;
-  final T Function(Object entry) read;
-  final Object Function(Object entry, T value) write;
+  final List<Object?> values;
+  final String Function(Object? value) labelOf;
+  final Object? Function(Object entry) read;
+  final Object Function(Object entry, Object? value) write;
 }
 
 EntryField textOf<E extends Object>(
@@ -131,15 +139,18 @@ EntryField choiceOf<E extends Object, T>(
   String label,
   List<T> values,
   String Function(T value) labelOf,
-  T Function(E entry) read,
+  T? Function(E entry) read,
   E Function(E entry, T value) write,
 ) =>
-    ChoiceEntryField<T>(
+    ChoiceEntryField(
       label,
-      values: values,
-      labelOf: labelOf,
+      values: values.cast<Object?>(),
+      labelOf: (Object? value) => value is T ? labelOf(value) : '',
       read: (Object e) => read(e as E),
-      write: (Object e, T v) => write(e as E, v),
+      // A value of the wrong type is impossible from the dropdown that owns
+      // this field; returning the record unchanged is the safe answer if it
+      // ever happens.
+      write: (Object e, Object? v) => v is T ? write(e as E, v) : e,
     );
 
 /// The date span of a record, for the summary line of an entry tile.

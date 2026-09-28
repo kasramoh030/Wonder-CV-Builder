@@ -119,7 +119,7 @@ void main() {
             case SwitchEntryField f:
               entry = f.write(entry, !f.read(entry));
               expect(f.read(entry), isTrue, reason: '${key.id}/${f.label}');
-            case ChoiceEntryField<Object?> f:
+            case ChoiceEntryField f:
               expect(f.values, isNotEmpty, reason: '${key.id}/${f.label}');
               final Object? second = f.values.length > 1 ? f.values[1] : f.values.first;
               entry = f.write(entry, second);

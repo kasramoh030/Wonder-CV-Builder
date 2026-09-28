@@ -228,8 +228,7 @@ class _SectionsPane extends ConsumerWidget {
     final List<SectionKey> suggested = plan.addableSections
         .where((SectionKey k) => !visible.contains(k))
         .toList(growable: false);
-    final int filled =
-        visible.where((SectionKey k) => resume.content.hasContentFor(k)).length;
+    final int filled = visible.where(resume.content.hasContentFor).length;
 
     return ListView(
       padding: AppSpacing.screen,

@@ -631,7 +631,7 @@ class _AdvancedCard extends StatelessWidget {
   const _AdvancedCard();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final ThemeData theme = Theme.of(context);
 
