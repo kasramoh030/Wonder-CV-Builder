@@ -106,6 +106,7 @@ class StringsDe extends AppLocalizations {
   String get onboardingWhereApplying => 'Wo bewirbst du dich?';
   @override
   String get industryLabel => 'Branche';
+  @override
   String get onboardingWhereApplyingHint =>
       'Jeder Markt hat eigene Konventionen für Foto, persönliche Angaben, Länge und Papierformat. Du kannst das später ändern.';
   @override

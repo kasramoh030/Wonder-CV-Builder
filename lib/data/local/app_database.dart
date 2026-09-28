@@ -34,6 +34,7 @@ part 'app_database.g.dart';
 ///
 /// The columns that *are* projected out (title, region, type, timestamps)
 /// are exactly the ones the dashboard sorts, filters and displays.
+@DataClassName('ResumeRow')
 class Resumes extends Table {
   TextColumn get id => text()();
   TextColumn get title => text()();
@@ -73,6 +74,7 @@ class Resumes extends Table {
 }
 
 /// Point-in-time snapshots of a CV, so an experiment never destroys work.
+@DataClassName('ResumeVersionRow')
 class ResumeVersions extends Table {
   TextColumn get id => text()();
   TextColumn get resumeId => text().references(Resumes, #id, onDelete: KeyAction.cascade)();
@@ -89,6 +91,7 @@ class ResumeVersions extends Table {
 }
 
 /// Records of every PDF the user has produced, powering "Recent documents".
+@DataClassName('ExportedDocumentRow')
 class ExportedDocuments extends Table {
   TextColumn get id => text()();
   TextColumn get resumeId => text().nullable()();
@@ -108,6 +111,7 @@ class ExportedDocuments extends Table {
 }
 
 /// Saved analyser output, so a report survives app restarts.
+@DataClassName('AnalysisRecordRow')
 class AnalysisRecords extends Table {
   TextColumn get id => text()();
   TextColumn get resumeId => text().references(Resumes, #id, onDelete: KeyAction.cascade)();
@@ -123,6 +127,7 @@ class AnalysisRecords extends Table {
 }
 
 /// Pasted job adverts and the requirements extracted from them.
+@DataClassName('JobDescriptionRow')
 class JobDescriptions extends Table {
   TextColumn get id => text()();
   TextColumn get resumeId => text().nullable()();

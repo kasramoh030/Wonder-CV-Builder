@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../settings/settings_providers.dart';
 import 'connectivity_banner.dart';
 
 /// The four-tab shell that wraps every top-level screen.

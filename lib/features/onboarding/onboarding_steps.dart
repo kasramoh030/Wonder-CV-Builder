@@ -346,6 +346,18 @@ String regionLabel(AppLocalizations l10n, RegionCode region) => switch (region) 
       RegionCode.international => l10n.regionInternational,
     };
 
+/// One-line explanation of what a market expects, shown under the region
+/// name. Deliberately descriptive rather than prescriptive — the app never
+/// claims a format is mandatory in any country.
+String regionHint(AppLocalizations l10n, RegionCode region) => switch (region) {
+      RegionCode.iran => 'A4 · Persian or English · photo common',
+      RegionCode.europe => 'A4 · multi-country · Europass-style available',
+      RegionCode.germany => 'A4 · German or English · Lebenslauf conventions',
+      RegionCode.unitedKingdom => 'A4 · two pages · no photo',
+      RegionCode.unitedStates => 'US Letter · one page · no photo, no personal details',
+      RegionCode.international => 'A4 · neutral defaults that travel well',
+    };
+
 String regionFlag(RegionCode region) => switch (region) {
       RegionCode.iran => '🇮🇷',
       RegionCode.europe => '🇪🇺',

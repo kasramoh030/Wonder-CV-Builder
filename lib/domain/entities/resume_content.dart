@@ -907,6 +907,7 @@ class ResumeContent {
         SectionKey.interests => interests.isNotEmpty,
         SectionKey.digitalSkills => digitalSkills.isNotEmpty,
         SectionKey.keySkills => keySkills.isNotEmpty,
+        SectionKey.achievements => awards.any((Award a) => !a.hidden),
         SectionKey.additionalInfo => additionalInfo.trim().isNotEmpty,
         SectionKey.militaryService => militaryService.trim().isNotEmpty,
         SectionKey.drivingLicence => drivingLicence.trim().isNotEmpty,

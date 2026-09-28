@@ -35,11 +35,17 @@ class SettingsController extends AsyncNotifier<AppSettings> {
 
   SettingsStore? _store;
 
-  Future<SettingsStore> _resolveStore() async =>
-      _store ??= await ref.read(settingsStoreProvider);
+  Future<SettingsStore> _resolveStore() async {
+    final SettingsStore resolved = _store ?? await ref.read(settingsStoreProvider);
+    _store = resolved;
+    return resolved;
+  }
 
   /// Applies [mutate] to the current settings, persists, and publishes.
-  Future<void> update(AppSettings Function(AppSettings current) mutate) async {
+  ///
+  /// Named `patch` rather than `update` because `AsyncNotifier` already
+  /// defines `update`, with different semantics.
+  Future<void> patch(AppSettings Function(AppSettings current) mutate) async {
     final AppSettings current = state.valueOrNull ?? AppSettings.defaults;
     final AppSettings next = mutate(current);
     state = AsyncData<AppSettings>(next);
@@ -48,25 +54,25 @@ class SettingsController extends AsyncNotifier<AppSettings> {
   }
 
   Future<void> setThemeMode(AppThemeMode mode) =>
-      update((AppSettings s) => s.copyWith(themeMode: mode));
+      patch((AppSettings s) => s.copyWith(themeMode: mode));
 
   Future<void> setLanguage(String languageCode) =>
-      update((AppSettings s) => s.copyWith(languageCode: languageCode));
+      patch((AppSettings s) => s.copyWith(languageCode: languageCode));
 
   Future<void> setDefaultRegion(RegionCode region) =>
-      update((AppSettings s) => s.copyWith(defaultRegion: region));
+      patch((AppSettings s) => s.copyWith(defaultRegion: region));
 
   Future<void> setDefaultIndustry(Industry industry) =>
-      update((AppSettings s) => s.copyWith(defaultIndustry: industry));
+      patch((AppSettings s) => s.copyWith(defaultIndustry: industry));
 
   Future<void> setDefaultPaperSize(PaperSize size) =>
-      update((AppSettings s) => s.copyWith(defaultPaperSize: size));
+      patch((AppSettings s) => s.copyWith(defaultPaperSize: size));
 
   Future<void> setDateSystem(DateSystem system) =>
-      update((AppSettings s) => s.copyWith(dateSystem: system));
+      patch((AppSettings s) => s.copyWith(dateSystem: system));
 
   Future<void> setDocumentFont(String family) =>
-      update((AppSettings s) => s.copyWith(documentFontFamily: family));
+      patch((AppSettings s) => s.copyWith(documentFontFamily: family));
 
   Future<void> completeOnboarding({
     required String languageCode,
@@ -85,18 +91,18 @@ class SettingsController extends AsyncNotifier<AppSettings> {
       );
 
   Future<void> restartOnboarding() =>
-      update((AppSettings s) => s.copyWith(onboardingCompleted: false));
+      patch((AppSettings s) => s.copyWith(onboardingCompleted: false));
 
-  Future<void> setLastOpenedResume(String? id) => update(
+  Future<void> setLastOpenedResume(String? id) => patch(
         (AppSettings s) => id == null
             ? s.copyWith(clearLastOpened: true)
             : s.copyWith(lastOpenedResumeId: id),
       );
 
   Future<void> setAiConsent({required bool granted}) =>
-      update((AppSettings s) => s.copyWith(aiConsentGranted: granted));
+      patch((AppSettings s) => s.copyWith(aiConsentGranted: granted));
 
-  Future<void> setAiProvider({required String providerId, String? model}) => update(
+  Future<void> setAiProvider({required String providerId, String? model}) => patch(
         (AppSettings s) => s.copyWith(
           aiProviderId: providerId,
           aiModel: model ?? s.aiModel,

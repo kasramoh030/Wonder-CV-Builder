@@ -106,6 +106,7 @@ class StringsFa extends AppLocalizations {
   String get onboardingWhereApplying => 'برای کجا اقدام می‌کنید؟';
   @override
   String get industryLabel => 'حوزه فعالیت';
+  @override
   String get onboardingWhereApplyingHint =>
       'هر بازار قواعد خودش را دارد: عکس، اطلاعات شخصی، طول رزومه و اندازه کاغذ. بعداً هم می‌توانید تغییر دهید.';
   @override

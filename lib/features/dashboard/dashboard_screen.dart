@@ -48,19 +48,14 @@ class DashboardScreen extends ConsumerWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, this.trailing});
+  const _SectionTitle({required this.title});
 
   final String title;
-  final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) => Row(
-        children: <Widget>[
-          Expanded(
-            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-          ),
-          if (trailing != null) trailing!,
-        ],
+  Widget build(BuildContext context) => Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium,
       );
 }
 

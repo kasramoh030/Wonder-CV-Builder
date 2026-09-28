@@ -29,7 +29,7 @@ class TemplateCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Container(
+          child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: AppRadius.lgAll,
               border: Border.all(

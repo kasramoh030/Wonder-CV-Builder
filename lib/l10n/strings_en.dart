@@ -102,6 +102,7 @@ class StringsEn extends AppLocalizations {
   String get onboardingWhereApplying => 'Where are you applying?';
   @override
   String get industryLabel => 'Industry';
+  @override
   String get onboardingWhereApplyingHint =>
       'Each market has its own conventions for photos, personal details, length and paper size. You can change this later.';
   @override

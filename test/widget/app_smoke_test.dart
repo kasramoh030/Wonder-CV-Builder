@@ -1,5 +1,4 @@
 import 'package:cv_pro/app/app.dart';
-import 'package:cv_pro/domain/templates/resume_template.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

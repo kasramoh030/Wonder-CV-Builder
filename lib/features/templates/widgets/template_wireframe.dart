@@ -35,13 +35,13 @@ class TemplateWireframe extends StatelessWidget {
       ResumeLayout.sidebarLeft => _Sidebar(
           accent: accent,
           ink: ink,
-          mirrored: rtl ? false : true,
+          mirrored: !rtl,
           photo: template.showPhoto,
         ),
       ResumeLayout.sidebarRight => _Sidebar(
           accent: accent,
           ink: ink,
-          mirrored: rtl ? true : false,
+          mirrored: rtl,
           photo: template.showPhoto,
         ),
       ResumeLayout.headerBandTwoColumn => _HeaderBandTwoColumn(
@@ -54,7 +54,7 @@ class TemplateWireframe extends StatelessWidget {
       aspectRatio: 1 / 1.414,
       child: ClipRRect(
         borderRadius: AppRadius.xsAll,
-        child: Container(color: Colors.white, child: body),
+        child: ColoredBox(color: Colors.white, child: body),
       ),
     );
   }
@@ -72,26 +72,27 @@ class _Lines extends StatelessWidget {
   const _Lines({
     required this.color,
     this.count = 3,
-    this.widths = const <double>[1, 0.94, 0.68],
     this.thickness = 3,
-    this.gap = 4,
   });
 
   final Color color;
   final int count;
-  final List<double> widths;
   final double thickness;
-  final double gap;
+
+  /// Widths of the bars as fractions of the available width. Shorter than
+  /// [count]: the sequence repeats, which is what makes a run of bars read
+  /// as a paragraph rather than a table.
+  static const List<double> _widths = <double>[1, 0.94, 0.68];
 
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           for (int i = 0; i < count; i++) ...<Widget>[
-            if (i > 0) SizedBox(height: gap),
+            if (i > 0) const SizedBox(height: 4),
             FractionallySizedBox(
               alignment: AlignmentDirectional.centerStart,
-              widthFactor: widths[i % widths.length],
+              widthFactor: _widths[i % _widths.length],
               child: Container(
                 height: thickness,
                 decoration: BoxDecoration(
