@@ -121,6 +121,13 @@ jobs:
             echo "* flutter analyze exit: ${analyze_code}"
             echo "* flutter test exit: ${test_code}"
             echo
+            echo "<details><summary>resolved package versions</summary>"
+            echo
+            echo '```'
+            awk '/^  [a-z_0-9]+:$/{pkg=$1} /^    version:/{if (pkg != "") print pkg" "$2; pkg=""}' pubspec.lock | head -200 || true
+            echo '```'
+            echo "</details>"
+            echo
             if [ "$gen_code" != "0" ]; then
               echo "<details open><summary>build_runner</summary>"
               echo

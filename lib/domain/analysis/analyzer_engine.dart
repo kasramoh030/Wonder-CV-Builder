@@ -769,7 +769,7 @@ class AnalyzerEngine {
     required List<Recommendation> findings,
   }) {
     final RegionalProfile profile = request.profile;
-    final List<Recommendation> byCategory(RecommendationCategory c) =>
+    List<Recommendation> byCategory(RecommendationCategory c) =>
         findings.where((Recommendation r) => r.category == c).toList();
 
     int penalise(int start, List<Recommendation> items) {
