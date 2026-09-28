@@ -356,7 +356,7 @@ class DriftResumeRepository implements ResumeRepository {
   @override
   Future<void> restore(String id) => (_db.update(_db.resumes)
         ..where((Resumes t) => t.id.equals(id)))
-      .write(ResumesCompanion(archived: const Value<bool>(false)));
+      .write(const ResumesCompanion(archived: Value<bool>(false)));
 
   @override
   Future<void> delete(String id) async {

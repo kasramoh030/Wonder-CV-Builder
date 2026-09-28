@@ -62,12 +62,11 @@ abstract final class JalaliDate {
 
   /// Julian day number for a Gregorian date.
   static int _g2d(int gy, int gm, int gd) {
-    int d = _div((gy + _div(gm - 8, 6) + 100100) * 1461, 4) +
+    final int d = _div((gy + _div(gm - 8, 6) + 100100) * 1461, 4) +
         _div(153 * _mod(gm + 9, 12) + 2, 5) +
         gd -
         34840408;
-    d = d - _div(_div(gy + 100100 + _div(gm - 8, 6), 100) * 3, 4) + 752;
-    return d;
+    return d - _div(_div(gy + 100100 + _div(gm - 8, 6), 100) * 3, 4) + 752;
   }
 
   /// Gregorian `[year, month, day]` for a Julian day number.

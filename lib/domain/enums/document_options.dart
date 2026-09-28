@@ -117,11 +117,19 @@ enum AtsSafety {
   decorative;
 
   static AtsSafety fromId(String id) => AtsSafety.values.firstWhere(
-        (AtsSafety s) => s.name == id,
+        (AtsSafety s) => s.id == id,
         orElse: () => AtsSafety.atsFriendly,
       );
 
-  String get id => name;
+  /// Matches the value written by `@JsonValue`, so a template exported to JSON
+  /// and read back keeps the same safety class. Matching on `name` here used
+  /// to turn a stored `ats_safe` into `ats_friendly`, which silently moved a
+  /// document out of the ATS template class.
+  String get id => switch (this) {
+        AtsSafety.atsSafe => 'ats_safe',
+        AtsSafety.atsFriendly => 'ats_friendly',
+        AtsSafety.decorative => 'decorative',
+      };
 }
 
 /// Theme mode preference persisted in settings.

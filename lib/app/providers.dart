@@ -16,7 +16,6 @@ import '../domain/enums/document_options.dart';
 import '../domain/enums/region_code.dart';
 import '../domain/rules/regional_rule_engine.dart';
 import '../domain/templates/resume_template.dart';
-import '../features/settings/settings_providers.dart';
 import 'providers_jobs.dart';
 
 /// The single database handle for the app's lifetime.
@@ -67,32 +66,28 @@ final StreamProviderFamily<List<ResumeVersionInfo>, String> resumeVersionsProvid
 final Provider<List<ResumeTemplate>> templatesProvider =
     Provider<List<ResumeTemplate>>((Ref ref) => ResumeTemplates.all);
 
+/// The analyser itself.
+///
+/// The vocabulary is the compiled one, so the engine exists the moment the
+/// app starts: nothing about the offline analyser waits on a file read that
+/// could fail. `AnalyzerVocabulary.load()` still merges an optional
+/// `assets/data/analyzer/vocabulary.json` extension for the day new
+/// terminology has to ship without a code change.
 final Provider<AnalyzerEngine> analyzerEngineProvider =
     Provider<AnalyzerEngine>(
-  (Ref ref) => AnalyzerEngine(vocabulary: ref.watch(analyzerVocabularyProvider)),
-);
-
-/// The analyser vocabulary: compiled in, optionally extended from
-/// `assets/data/analyzer/vocabulary.json`. Loaded once.
-final FutureProvider<AnalyzerVocabulary> analyzerVocabularyProvider =
-    FutureProvider<AnalyzerVocabulary>(
-  (Ref ref) => AnalyzerVocabulary.load(),
+  (Ref ref) => AnalyzerEngine(vocabulary: AnalyzerVocabulary.standard),
 );
 
 final Provider<JobDescriptionAnalyzer> jobAnalyzerProvider =
     Provider<JobDescriptionAnalyzer>(
-  (Ref ref) => JobDescriptionAnalyzer(
-    vocabulary: ref.watch(analyzerVocabularyProvider).valueOrNull ??
-        AnalyzerVocabulary.standard,
-  ),
+  (Ref ref) => JobDescriptionAnalyzer(vocabulary: AnalyzerVocabulary.standard),
 );
 
-/// The market rules for a document, resolved through the region profile.
-final FutureProviderFamily<RegionalProfile, RegionCode> regionalProfileProvider =
-    FutureProvider.family<RegionalProfile, RegionCode>(
-  (Ref ref, RegionCode region) =>
-      ref.watch(regionalRulesRepositoryProvider).load(region),
-);
+// The market profile itself — `regionalProfileProvider`, together with
+// `regionalProfileOrNeutralProvider` for screens that must paint immediately —
+// is declared next to the rules repository, where the cache lives. What
+// belongs here is the projection below: rules + document + template → one
+// plan.
 
 /// The resolved presentation plan for a document.
 ///

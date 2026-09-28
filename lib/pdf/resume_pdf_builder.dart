@@ -4,11 +4,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../core/date_display.dart';
-import '../domain/entities/regional_profile.dart';
 import '../domain/entities/resume.dart';
 import '../domain/entities/resume_content.dart';
 import '../domain/entities/year_month.dart';
-import '../domain/enums/document_options.dart';
 import '../domain/enums/section_key.dart';
 import '../domain/rules/regional_rule_engine.dart';
 import '../domain/templates/resume_template.dart';
@@ -110,7 +108,7 @@ class ResumePdfBuilder {
       title: request.resume.title,
       author: request.resume.content.personal.fullName,
       creator: 'CV Pro',
-      subject: request.l10n.appTitle,
+      subject: request.l10n.appName,
     );
 
     final List<pw.Widget> sections = _buildSections(request, tokens);
@@ -123,6 +121,8 @@ class ResumePdfBuilder {
       pw.MultiPage(
         pageFormat: format,
         theme: theme,
+        textDirection:
+            tokens.rtl ? pw.TextDirection.rtl : pw.TextDirection.ltr,
         margin: pw.EdgeInsets.fromLTRB(
           tokens.margin,
           tokens.margin,
@@ -149,7 +149,7 @@ class ResumePdfBuilder {
           'pdf.longerThanConvention',
           params: <String, String>{
             'pages': '$pages',
-            'ideal': '${request.plan.idealMax}',
+            'ideal': '${request.plan.page.idealMax}',
           },
         ),
       if (request.plan.showPhoto && request.photoBytes == null)
@@ -224,10 +224,9 @@ class ResumePdfBuilder {
 
     final pw.Widget content = photo == null
         ? identity
-        : pw.Row(
+        : _dirRow(
+            rtl: tokens.rtl,
             crossAxisAlignment: pw.CrossAxisAlignment.start,
-            textDirection:
-                tokens.rtl ? pw.TextDirection.rtl : pw.TextDirection.ltr,
             children: <pw.Widget>[
               photo,
               pw.SizedBox(width: 14),
@@ -325,7 +324,6 @@ class ResumePdfBuilder {
   // ── sections ─────────────────────────────────────────────────────────────
 
   List<pw.Widget> _buildSections(ResumePdfRequest request, _PdfTokens tokens) {
-    final ResumeContent c = request.resume.content;
     final List<pw.Widget> out = <pw.Widget>[];
 
     for (final SectionKey key in request.plan.printedSections) {
@@ -694,10 +692,9 @@ class ResumePdfBuilder {
       for (final String bullet in bullets.where((String b) => b.trim().isNotEmpty))
         pw.Padding(
           padding: const pw.EdgeInsets.only(top: 2.5),
-          child: pw.Row(
+          child: _dirRow(
+            rtl: tokens.rtl,
             crossAxisAlignment: pw.CrossAxisAlignment.start,
-            textDirection:
-                tokens.rtl ? pw.TextDirection.rtl : pw.TextDirection.ltr,
             children: <pw.Widget>[
               pw.Padding(
                 padding: const pw.EdgeInsets.only(top: 2),
@@ -727,10 +724,9 @@ class ResumePdfBuilder {
         children: <pw.Widget>[
           // Title and dates on one row: an ATS reads the line left to right
           // and finds the role and the period in the same text run.
-          pw.Row(
+          _dirRow(
+            rtl: tokens.rtl,
             crossAxisAlignment: pw.CrossAxisAlignment.start,
-            textDirection:
-                tokens.rtl ? pw.TextDirection.rtl : pw.TextDirection.ltr,
             children: <pw.Widget>[
               pw.Expanded(
                 child: pw.Text(
@@ -820,8 +816,8 @@ class ResumePdfBuilder {
           top: pw.BorderSide(color: tokens.rule, width: 0.5),
         ),
       ),
-      child: pw.Row(
-        textDirection: tokens.rtl ? pw.TextDirection.rtl : pw.TextDirection.ltr,
+      child: _dirRow(
+        rtl: tokens.rtl,
         children: <pw.Widget>[
           pw.Expanded(
             child: pw.Text(
@@ -939,13 +935,13 @@ class _PdfTokens {
   });
 
   factory _PdfTokens.from(ResumeTemplate template, {required bool rtl}) {
-    final PdfColor accent = PdfColor.fromHexString(template.accentHex);
+    final PdfColor accent = PdfColor.fromHex(template.accentHex);
     return _PdfTokens(
       rtl: rtl,
       accent: accent,
-      muted: PdfColor.fromHexString('#5B6472'),
-      rule: PdfColor.fromHexString('#D3D8E0'),
-      wash: PdfColor.fromHexString('#F4F6FA'),
+      muted: PdfColor.fromHex('#5B6472'),
+      rule: PdfColor.fromHex('#D3D8E0'),
+      wash: PdfColor.fromHex('#F4F6FA'),
       bodySize: template.baseFontSize,
       sectionGap: template.sectionGap,
       margin: switch (template.layout) {
@@ -955,7 +951,7 @@ class _PdfTokens {
       },
       headingColor: template.headingRule || template.headingUppercase
           ? accent
-          : PdfColor.fromHexString('#111827'),
+          : PdfColor.fromHex('#111827'),
     );
   }
 
@@ -981,8 +977,28 @@ class _PdfTokens {
       pw.TextStyle(
         fontSize: size ?? bodySize,
         fontWeight: weight ?? pw.FontWeight.normal,
-        color: color ?? PdfColor.fromHexString('#1F2937'),
-        lineHeight: 1.32,
+        color: color ?? PdfColor.fromHex('#1F2937'),
+        height: 1.32,
         letterSpacing: letterSpacing,
       );
 }
+
+/// A row whose children follow the document's writing direction.
+///
+/// The PDF engine's [pw.Row] is direction-agnostic: it always places the
+/// first child at the inline start of a left-to-right box. A right-to-left
+/// document therefore mirrors the child order here, which is the one thing
+/// the engine cannot infer. Alignment, padding and text direction are all
+/// resolved from the page's [pw.Directionality], so nothing else needs to
+/// know about RTL.
+pw.Widget _dirRow({
+  required bool rtl,
+  required List<pw.Widget> children,
+  pw.CrossAxisAlignment crossAxisAlignment = pw.CrossAxisAlignment.center,
+  pw.MainAxisAlignment mainAxisAlignment = pw.MainAxisAlignment.start,
+}) =>
+    pw.Row(
+      crossAxisAlignment: crossAxisAlignment,
+      mainAxisAlignment: mainAxisAlignment,
+      children: rtl ? children.reversed.toList(growable: false) : children,
+    );

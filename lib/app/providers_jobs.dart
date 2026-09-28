@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/repositories/resume_repository.dart';
 import '../domain/analysis/cv_text_index.dart';
 import '../domain/analysis/job_description_analyzer.dart';
-import '../domain/entities/analysis_report.dart';
 import '../domain/entities/job_description.dart';
 import '../domain/entities/resume.dart';
 import 'providers.dart';
