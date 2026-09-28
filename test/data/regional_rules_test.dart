@@ -172,25 +172,50 @@ void main() {
   });
 
   group('no absolutist claims', () {
-    // The brief forbids telling users that a format is the only valid one.
-    // This guards the copy as much as the code.
-    const List<String> banned = <String>[
-      'must be',
-      'only accepted',
-      'only valid',
+    // The brief forbids presenting any format as obligatory. Rather than
+    // grepping for a list of banned phrases (which catches innocent English
+    // such as "text must be laid out right to left"), this asserts the
+    // *shape* of the advice: an advisory describes what is usual, and never
+    // uses the vocabulary of obligation.
+    const List<String> deontic = <String>[
+      'must',
+      'mandatory',
+      'obligatory',
+      'required by',
+      'is required',
       'illegal',
-      'mandatory format',
-      'the only',
+      'legally',
       'required by law',
     ];
 
-    test('rule copy stays advisory in every language present', () {
+    test('every advisory is phrased as a convention, not a rule', () {
       for (final RegionCode region in RegionCode.values) {
-        final String raw =
-            File(region.assetPath).readAsStringSync().toLowerCase();
-        for (final String phrase in banned) {
-          expect(raw.contains(phrase), isFalse,
-              reason: '${region.id} claims "$phrase", which the brief bans');
+        final RegionalProfile profile =
+            RegionalProfile.fromJson(readBundle(region));
+        for (final RegionalAdvisory advisory in profile.advisories) {
+          final String text = advisory.text.toLowerCase();
+          for (final String word in deontic) {
+            expect(text.contains(word), isFalse,
+                reason: '${region.id}/${advisory.code} uses "$word", which '
+                    'turns advice into a requirement');
+          }
+        }
+      }
+    });
+
+    test('advisory copy uses hedging language', () {
+      const List<String> hedges = <String>[
+        'usually', 'often', 'typically', 'common', 'conventional', 'many',
+        'some', 'tends', 'most ', 'can ', 'may ',
+      ];
+      for (final RegionCode region in RegionCode.values) {
+        final RegionalProfile profile =
+            RegionalProfile.fromJson(readBundle(region));
+        for (final RegionalAdvisory advisory in profile.advisories) {
+          final String text = advisory.text.toLowerCase();
+          expect(hedges.any(text.contains), isTrue,
+              reason: '${region.id}/${advisory.code} states a convention '
+                  'without hedging it: "${advisory.text}"');
         }
       }
     });

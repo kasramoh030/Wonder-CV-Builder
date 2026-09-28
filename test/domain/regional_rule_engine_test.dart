@@ -155,16 +155,25 @@ void main() {
     });
 
     test('a market that expects a photo produces no advisory for one', () {
-      final RegionalProfile iran = bundle(RegionCode.iran);
-      final Resume resume = resumeFor(RegionCode.iran, CvType.professionalCv)
+      // A synthetic market, so the assertion tests the engine rather than
+      // whichever policy Iran happens to carry today.
+      const RegionalProfile photoExpected = RegionalProfile(
+        id: 'photo_expected',
+        photo: PhotoPolicy(policy: PhotoExpectation.expected, conventional: true),
+      );
+      final Resume resume = resumeFor(RegionCode.international, CvType.professionalCv)
           .copyWith(
         content: const ResumeContent(
-          personal: PersonalInfo(firstName: 'Sara', photoPath: '/tmp/s.jpg', showPhoto: true),
+          personal: PersonalInfo(
+            firstName: 'Sara',
+            photoPath: '/tmp/s.jpg',
+            showPhoto: true,
+          ),
         ),
       );
 
       final FormatPlan plan =
-          RegionalRuleEngine.planFor(profile: iran, resume: resume);
+          RegionalRuleEngine.planFor(profile: photoExpected, resume: resume);
       expect(
         plan.advisories.any((RegionalAdvisory a) => a.code.startsWith('regional.photo')),
         isFalse,

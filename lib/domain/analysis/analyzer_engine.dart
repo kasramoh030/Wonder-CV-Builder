@@ -88,7 +88,10 @@ class AnalyzerEngine {
       findings: findings,
     );
 
-    final int total = _combine(dimensions);
+    final int total = _capForCriticalFindings(
+      raw: _combine(dimensions),
+      findings: findings,
+    );
 
     return AnalysisReport(
       resumeId: resume.id,
@@ -559,10 +562,12 @@ class AnalyzerEngine {
       }
     }
 
-    if (stats.wordCount > 0 && stats.wordCount < 120) {
+    if (stats.wordCount < 120) {
       out.add(Recommendation(
         code: 'language.veryLittleText',
-        priority: IssuePriority.high,
+        priority: stats.wordCount < 60
+            ? IssuePriority.critical
+            : IssuePriority.high,
         category: RecommendationCategory.language,
         params: <String, String>{'words': '${stats.wordCount}'},
       ));
@@ -791,11 +796,16 @@ class AnalyzerEngine {
 
     // The ATS score starts from the document's mechanical safety rather than
     // from 100, because a decorative template is not a "small deduction".
-    final int atsBase = switch (request.template.atsSafety) {
+    final int templateBase = switch (request.template.atsSafety) {
       AtsSafety.atsSafe => 100,
       AtsSafety.atsFriendly => 92,
       AtsSafety.decorative => 74,
     };
+    // A parser has nothing to work with when the document is nearly empty, so
+    // the dimension cannot start from the template's safety alone. Without
+    // this, an empty CV scored well on "ATS" purely for using a plain layout.
+    final int atsBase =
+        stats.wordCount < 60 ? (templateBase > 45 ? 45 : templateBase) : templateBase;
     final int ats = penalise(atsBase, byCategory(RecommendationCategory.ats));
 
     final List<ScoreDimension> dimensions = <ScoreDimension>[
@@ -846,6 +856,24 @@ class AnalyzerEngine {
 
   List<String> _notesFor(List<Recommendation> items, int limit) =>
       items.take(limit).map((Recommendation r) => r.code).toList(growable: false);
+
+  /// Keeps the total honest when something fundamental is missing.
+  ///
+  /// Without this, a nearly empty document still scored in the sixties: the
+  /// ATS, structure and language dimensions were all individually defensible,
+  /// yet the document is not usable. A weighted average cannot express "this
+  /// is not finished", so the total is capped instead.
+  int _capForCriticalFindings({
+    required int raw,
+    required List<Recommendation> findings,
+  }) {
+    final int criticals = findings
+        .where((Recommendation r) => r.priority == IssuePriority.critical)
+        .length;
+    if (criticals >= 2) return raw.clamp(0, 32);
+    if (criticals == 1) return raw.clamp(0, 55);
+    return raw;
+  }
 
   int _combine(List<ScoreDimension> dimensions) {
     double weighted = 0;

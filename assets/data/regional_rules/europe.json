@@ -6,24 +6,34 @@
   "summary": "General European conventions for cross-border applications. Where a specific country is known, its own profile should be used instead — this profile is the sane default for applications that cross borders, such as EU institutions, Erasmus programmes and pan-European employers.",
   "paperSize": "a4",
   "documentLanguage": "en",
-  "acceptedDocumentLanguages": ["en", "de", "fr"],
+  "acceptedDocumentLanguages": [
+    "en",
+    "de",
+    "fr"
+  ],
   "dateSystem": "gregorian",
+  "dateSystemOptions": [
+    "gregorian"
+  ],
   "dateFormat": "MM/YYYY",
-
   "photo": {
     "policy": "optional",
     "conventional": false,
     "shape": "rounded",
     "note": "Photo expectations differ sharply inside Europe: common in German-speaking countries and some southern states, unusual in the UK, Ireland and the Nordics. When in doubt, leave it out — an application without a photo is never penalised for that reason alone."
   },
-
   "personalInfo": {
     "showSensitiveByDefault": false,
-    "conventional": ["nationality"],
-    "discouraged": ["nationalId", "maritalStatus", "birthDate"],
+    "conventional": [
+      "nationality"
+    ],
+    "discouraged": [
+      "nationalId",
+      "maritalStatus",
+      "birthDate"
+    ],
     "note": "Nationality is sometimes relevant for work-permit purposes within the EU; date of birth and marital status generally are not. GDPR gives you the right to withhold personal data that is not necessary for the application."
   },
-
   "sections": {
     "order": [
       "personal",
@@ -38,18 +48,24 @@
       "volunteering",
       "references"
     ],
-    "required": ["personal", "experience", "education"],
-    "recommended": ["summary", "skills", "languages"],
+    "required": [
+      "personal",
+      "experience",
+      "education"
+    ],
+    "recommended": [
+      "summary",
+      "skills",
+      "languages"
+    ],
     "discouraged": []
   },
-
   "page": {
     "min": 1,
     "max": 3,
     "idealMax": 2,
     "note": "Two pages for most roles; the Europass-style format often runs longer because language and digital-skill grids take space."
   },
-
   "ats": {
     "strictness": "medium",
     "photoOnAts": false,
@@ -58,7 +74,6 @@
       "The Europass format is one widely used European structure, not a legal requirement — no European country mandates a specific CV format."
     ]
   },
-
   "language": {
     "expectedTone": "professional",
     "verbTensePreference": "mixed",
@@ -67,7 +82,6 @@
       "An English CV is accepted by most pan-European employers, but a CV in the employer's language is a meaningful advantage."
     ]
   },
-
   "advisories": [
     {
       "code": "regional.eu.cefr",

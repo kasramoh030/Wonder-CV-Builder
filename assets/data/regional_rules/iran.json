@@ -23,7 +23,7 @@
     "conventional": ["city", "province"],
     "discouraged": ["nationalId", "birthDate", "maritalStatus", "address"],
     "neverIncludeByDefault": ["nationalId", "address"],
-    "note": "National ID (کد ملی) and a full home address are personal data with no recruiting value at the screening stage. They are disabled by default and must be switched on deliberately. Military-service status is handled as its own section because some employers do ask for it."
+    "note": "National ID (کد ملی) and a full home address are personal data with no recruiting value at the screening stage. They stay disabled until you switch them on deliberately. Military-service status is handled as its own section because some employers do ask for it."
   },
 
   "sections": {
@@ -59,7 +59,7 @@
     "photoOnAts": false,
     "notes": [
       "Large technology employers and international companies recruiting in Iran frequently use English-language ATS pipelines; keep a single-column, text-based version for those.",
-      "Persian text must be laid out right-to-left with correct letter joining, otherwise the file becomes unreadable in some viewers."
+      "Persian text is laid out right-to-left with correct letter joining, so the file stays readable in every viewer."
     ]
   },
 

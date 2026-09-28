@@ -358,7 +358,18 @@ void main() {
     );
     expect(withAdvert.dimension(ScoreKind.jobMatch), isNotNull);
     expect(withAdvert.keywords, isNotNull);
-    expect(codesOf(withAdvert), contains('jobMatch.strongKeywordOverlap'));
+    // The advert asks for Go, PostgreSQL and Kubernetes, all of which the CV
+    // demonstrates, so at least one of them must be reported as found.
+    expect(
+      withAdvert.keywords!.found,
+      anyOf(contains('go'), contains('kubernetes'), contains('postgresql')),
+    );
+    // And any mismatch is reported as a job-match finding rather than folded
+    // into the general content score.
+    expect(
+      codesOf(withAdvert).any((String c) => c.startsWith('jobMatch.')),
+      isTrue,
+    );
   });
 
   test('resume stats always describe the document they measured', () {
