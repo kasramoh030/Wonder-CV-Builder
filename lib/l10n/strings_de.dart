@@ -199,6 +199,10 @@ class StringsDe extends AppLocalizations {
 
   // ── Sections ─────────────────────────────────────────────────────────────
   @override
+  @override
+  String get presentLabel => 'heute';
+
+  @override
   String get sectionPersonal => 'Persönliche Daten';
   @override
   String get sectionSummary => 'Profil';

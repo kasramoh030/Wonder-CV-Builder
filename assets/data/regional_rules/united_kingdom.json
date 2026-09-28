@@ -6,24 +6,32 @@
   "summary": "UK conventions. A two-page CV is normal and expected; a personal profile at the top is standard practice.",
   "paperSize": "a4",
   "documentLanguage": "en",
-  "acceptedDocumentLanguages": ["en"],
+  "acceptedDocumentLanguages": [
+    "en"
+  ],
   "dateSystem": "gregorian",
+  "dateSystemOptions": [
+    "gregorian"
+  ],
   "dateFormat": "MM/YYYY",
-
   "photo": {
     "policy": "discouraged",
     "conventional": false,
     "shape": "circle",
     "note": "Photos are not expected on UK CVs and are best omitted; UK employers avoid anything that could be read as a basis for discrimination."
   },
-
   "personalInfo": {
     "showSensitiveByDefault": false,
     "conventional": [],
-    "discouraged": ["birthDate", "gender", "nationality", "maritalStatus", "nationalId"],
+    "discouraged": [
+      "birthDate",
+      "gender",
+      "nationality",
+      "maritalStatus",
+      "nationalId"
+    ],
     "note": "Date of birth, marital status, gender and nationality are not included on a UK CV. City is useful; a full street address is not."
   },
-
   "sections": {
     "order": [
       "personal",
@@ -38,18 +46,26 @@
       "additionalInfo",
       "references"
     ],
-    "required": ["personal", "experience", "education"],
-    "recommended": ["summary", "skills", "certifications"],
-    "discouraged": ["interests"]
+    "required": [
+      "personal",
+      "experience",
+      "education"
+    ],
+    "recommended": [
+      "summary",
+      "skills",
+      "certifications"
+    ],
+    "discouraged": [
+      "interests"
+    ]
   },
-
   "page": {
     "min": 1,
     "max": 3,
     "idealMax": 2,
     "note": "Two pages is the standard expectation. A one-page CV reads as early-career; three is acceptable for senior or academic candidates."
   },
-
   "ats": {
     "strictness": "medium",
     "photoOnAts": false,
@@ -58,7 +74,6 @@
       "UK spelling should be used when applying to UK employers (organisation, analyse, programme)."
     ]
   },
-
   "language": {
     "expectedTone": "professional",
     "verbTensePreference": "mixed",
@@ -67,7 +82,6 @@
       "Achievement-oriented bullets are expected, but a slightly more formal register than a US resume reads better."
     ]
   },
-
   "advisories": [
     {
       "code": "regional.uk.profile",
@@ -82,7 +96,7 @@
     {
       "code": "regional.uk.spelling",
       "severity": "medium",
-      "text": "Use UK spelling for UK employers — mismatched spelling reads as an untailored application."
+      "text": "UK spelling is common for UK employers; a mix of US and UK spelling can read as an untailored application, so it is usually worth keeping one style throughout."
     },
     {
       "code": "regional.uk.grades",

@@ -6,24 +6,33 @@
   "summary": "United States conventions. A one-page resume is the norm early in a career; an academic CV is a different document entirely and is supported separately.",
   "paperSize": "us_letter",
   "documentLanguage": "en",
-  "acceptedDocumentLanguages": ["en"],
+  "acceptedDocumentLanguages": [
+    "en"
+  ],
   "dateSystem": "gregorian",
+  "dateSystemOptions": [
+    "gregorian"
+  ],
   "dateFormat": "MM/YYYY",
-
   "photo": {
     "policy": "discouraged",
     "conventional": false,
     "shape": "circle",
     "note": "A photo on a US resume is strongly discouraged: it creates a risk of discrimination claims, so many employers discard applications that include one. It is off by default."
   },
-
   "personalInfo": {
     "showSensitiveByDefault": false,
     "conventional": [],
-    "discouraged": ["birthDate", "gender", "nationality", "maritalStatus", "nationalId", "address"],
+    "discouraged": [
+      "birthDate",
+      "gender",
+      "nationality",
+      "maritalStatus",
+      "nationalId",
+      "address"
+    ],
     "note": "US resumes carry no date of birth, marital status, gender, nationality or photo. Exceptions: a work-authorisation statement is common, and an address is usually just city and state."
   },
-
   "sections": {
     "order": [
       "personal",
@@ -36,18 +45,28 @@
       "awards",
       "volunteering"
     ],
-    "required": ["personal", "experience", "education", "skills"],
-    "recommended": ["summary", "projects", "certifications"],
-    "discouraged": ["references", "languages"]
+    "required": [
+      "personal",
+      "experience",
+      "education",
+      "skills"
+    ],
+    "recommended": [
+      "summary",
+      "projects",
+      "certifications"
+    ],
+    "discouraged": [
+      "references",
+      "languages"
+    ]
   },
-
   "page": {
     "min": 1,
     "max": 2,
     "idealMax": 1,
     "note": "One page for under ten years of experience; two pages thereafter. Recruiters spend seconds on a first pass, and length is not rewarded."
   },
-
   "ats": {
     "strictness": "high",
     "photoOnAts": false,
@@ -57,7 +76,6 @@
       "Use the exact job title from the advert as the headline where it is accurate — keyword matching is literal."
     ]
   },
-
   "language": {
     "expectedTone": "direct",
     "verbTensePreference": "past",
@@ -67,7 +85,6 @@
       "Spelling should be consistent US English (organization, analyze, program)."
     ]
   },
-
   "advisories": [
     {
       "code": "regional.us.noPersonalPronouns",
@@ -77,12 +94,12 @@
     {
       "code": "regional.us.quantify",
       "severity": "high",
-      "text": "US recruiters expect measurable outcomes. Where you know a number, include it; where you do not, describe the outcome without inventing one."
+      "text": "US recruiters often look for measurable outcomes. Where you know a number, including it usually helps; where you do not, most reviewers still prefer a described outcome over a made-up figure."
     },
     {
       "code": "regional.us.references",
       "severity": "info",
-      "text": "\"References available upon request\" is not needed and is generally omitted."
+      "text": "\"References available upon request\" is usually unnecessary on a US resume; most recruiters do not expect it, and many omit the line entirely."
     },
     {
       "code": "regional.us.workAuthorisation",

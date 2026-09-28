@@ -165,6 +165,9 @@ abstract class AppLocalizations {
   String get regionInternational;
 
   // ── Sections ─────────────────────────────────────────────────────────────
+  /// Word printed where an entry is still current, e.g. `Mar 2021 – Present`.
+  String get presentLabel;
+
   String get sectionPersonal;
   String get sectionSummary;
   String get sectionExperience;

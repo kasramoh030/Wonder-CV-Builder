@@ -199,6 +199,10 @@ class StringsFa extends AppLocalizations {
 
   // ── Sections ─────────────────────────────────────────────────────────────
   @override
+  @override
+  String get presentLabel => 'تاکنون';
+
+  @override
   String get sectionPersonal => 'اطلاعات شخصی';
   @override
   String get sectionSummary => 'خلاصه حرفه‌ای';

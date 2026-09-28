@@ -195,6 +195,10 @@ class StringsEn extends AppLocalizations {
 
   // ── Sections ─────────────────────────────────────────────────────────────
   @override
+  @override
+  String get presentLabel => 'Present';
+
+  @override
   String get sectionPersonal => 'Personal information';
   @override
   String get sectionSummary => 'Professional summary';
