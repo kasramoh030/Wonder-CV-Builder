@@ -113,9 +113,7 @@ class _JobMatchScreenState extends ConsumerState<JobMatchScreen> {
               ),
               const SizedBox(width: AppSpacing.sm),
               TextButton(
-                onPressed: state.hasAdvert
-                    ? () => _fillFromClipboard()
-                    : null,
+                onPressed: state.hasAdvert ? _fillFromClipboard : null,
                 child: Text(l10n.jobPasteDescription),
               ),
             ],

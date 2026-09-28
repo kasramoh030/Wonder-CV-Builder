@@ -12,8 +12,8 @@ import '../../app/theme/app_spacing.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../data/import/document_text_extractor.dart';
 import '../../data/import/resume_importer.dart';
-import '../../domain/entities/resume_content.dart';
 import '../../domain/entities/resume.dart';
+import '../../domain/entities/resume_content.dart';
 import '../../domain/enums/cv_type.dart';
 import '../../domain/enums/document_options.dart';
 import '../../domain/enums/region_code.dart';
@@ -156,18 +156,19 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
 
   Future<void> _pickFile(List<String> extensions) async {
     try {
-      final FilePickerResult? result = await FilePicker.platform.pickFiles(
+      // file_picker 13 exposes static pickers and returns the file directly;
+      // there is no result wrapper to unwrap any more.
+      final PlatformFile? picked = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: extensions,
-        withData: false,
       );
-      final String? path = result?.files.single.path;
-      if (path == null) return;
-      final File file = File(path);
+      final String? path = picked?.path;
+      if (picked == null || path == null) return;
       setState(() => _stage = _Stage.parsing);
-      final ImportFormat format = DocumentTextExtractor.formatFor(path);
-      final String text = await DocumentTextExtractor.extract(file, format);
-      _parse(text, result?.files.single.name ?? path);
+      final ImportFormat format = DocumentTextExtractor.formatFor(picked.name);
+      final String text =
+          await DocumentTextExtractor.extract(File(path), format);
+      _parse(text, picked.name);
     } on ImportFailure catch (failure) {
       _fail(failure.code);
     } on Object {
@@ -508,7 +509,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       messenger.showSnackBar(
         SnackBar(content: Text(l10n.importConfirmImport)),
       );
-      context.push(AppRoutes.builderPath(created.id));
+      await context.push(AppRoutes.builderPath(created.id));
     } on Object {
       if (!mounted) return;
       setState(() => _saving = false);

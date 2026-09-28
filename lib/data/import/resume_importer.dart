@@ -163,6 +163,8 @@ abstract final class ResumeImporter {
     List<DatedEntry> teaching = const <DatedEntry>[];
     List<DatedEntry> conferences = const <DatedEntry>[];
     List<DatedEntry> grants = const <DatedEntry>[];
+    List<DatedEntry> appointments = const <DatedEntry>[];
+    List<DatedEntry> service = const <DatedEntry>[];
     List<DatedEntry> memberships = const <DatedEntry>[];
     List<Reference> references = const <Reference>[];
     List<CustomSection> custom = const <CustomSection>[];
@@ -205,6 +207,10 @@ abstract final class ResumeImporter {
           research = block.entries.map(_dated).toList(growable: false);
         case SectionKey.teachingExperience:
           teaching = block.entries.map(_dated).toList(growable: false);
+        case SectionKey.academicAppointments:
+          appointments = block.entries.map(_dated).toList(growable: false);
+        case SectionKey.academicService:
+          service = block.entries.map(_dated).toList(growable: false);
         case SectionKey.conferences:
         case SectionKey.presentations:
           conferences = <DatedEntry>[...conferences, ...block.entries.map(_dated)];
@@ -268,6 +274,8 @@ abstract final class ResumeImporter {
       teachingExperience: teaching,
       conferences: conferences,
       grants: grants,
+      academicAppointments: appointments,
+      academicService: service,
       memberships: memberships,
       references: references,
       customSections: custom,
@@ -296,6 +304,8 @@ abstract final class ResumeImporter {
     count(SectionKey.teachingExperience, teaching.length);
     count(SectionKey.conferences, conferences.length);
     count(SectionKey.grants, grants.length);
+    count(SectionKey.academicAppointments, appointments.length);
+    count(SectionKey.academicService, service.length);
     count(SectionKey.memberships, memberships.length);
     count(SectionKey.references, references.length);
     count(SectionKey.interests, interests.length);
@@ -326,36 +336,40 @@ abstract final class ResumeImporter {
   /// summary, which is where an unlabelled professional profile usually sits.
   static List<_Block> _split(List<String> lines) {
     final List<_Block> blocks = <_Block>[];
-    _Block current = _Block(
-      key: SectionKey.personal,
-      title: '',
-      lines: <String>[],
-    );
-    int blankRun = 0;
+    final List<String> pending = <String>[];
+    SectionKey key = SectionKey.personal;
+    String title = '';
+
+    void flush() {
+      if (pending.any((String line) => line.trim().isNotEmpty)) {
+        blocks.add(_Block(
+          key: key,
+          title: title,
+          lines: List<String>.of(pending),
+        ));
+      }
+      pending.clear();
+      title = '';
+    }
 
     for (final String line in lines) {
       final String trimmed = line.trim();
       if (trimmed.isEmpty) {
-        blankRun++;
-        current.rawLines.add('');
+        pending.add('');
         continue;
       }
       final SectionKey? heading = _headingFor(trimmed);
       if (heading != null) {
-        if (_hasBody(current)) blocks.add(current);
-        current = _Block(key: heading, title: trimmed, lines: <String>[]);
-        blankRun = 0;
+        flush();
+        key = heading;
+        title = trimmed;
         continue;
       }
-      current.rawLines.add(trimmed);
-      blankRun = 0;
+      pending.add(trimmed);
     }
-    if (_hasBody(current)) blocks.add(current);
+    flush();
     return blocks;
   }
-
-  static bool _hasBody(_Block block) => block.rawLines
-      .any((String line) => line.trim().isNotEmpty && line.trim() != block.title);
 
   /// A heading is a short line that names one of the sections.
   ///
@@ -707,14 +721,14 @@ abstract final class ResumeImporter {
     'ابزار:',
   ];
 
-  static const RegExp _urlPattern = RegExp(r'https?://[^\s]+|www\.[^\s]+');
+  static final RegExp _urlPattern =
+      RegExp(r'https?://[^\s]+|www\.[^\s]+');
 
-  static const RegExp _doi = RegExp(r'10\.\d{4,9}/[^\s]+');
+  static final RegExp _doi = RegExp(r'10\.\d{4,9}/[^\s]+');
 
-  static const RegExp _email = RegExp(r'[\w.+-]+@[\w-]+\.[\w.-]+');
+  static final RegExp _email = RegExp(r'[\w.+-]+@[\w-]+\.[\w.-]+');
 
-  static const RegExp _phone =
-      RegExp(r'(\+?\d[\d\s().\-]{6,}\d)');
+  static final RegExp _phone = RegExp(r'(\+?\d[\d\s().\-]{6,}\d)');
 
   static bool _looksLikePlace(String line) =>
       line.length <= 40 && !line.contains('@') && !_datePattern.hasMatch(line);
@@ -862,8 +876,6 @@ class _Block {
   final SectionKey key;
   final String title;
   final List<String> lines;
-
-  List<String> get rawLines => lines;
 
   String get body => lines
       .where((String line) => line.trim().isNotEmpty)

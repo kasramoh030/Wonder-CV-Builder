@@ -354,7 +354,7 @@ class PdfTextExtractor {
       code == 125;
 
   /// Parses a `( ... )` string, honouring escapes and nested parentheses.
-  static (String, int) _literalString(String source, int start) {
+  (String, int) _literalString(String source, int start) {
     final List<int> bytes = <int>[];
     int i = start + 1;
     int depth = 1;
