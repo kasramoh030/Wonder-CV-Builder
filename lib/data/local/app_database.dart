@@ -329,7 +329,7 @@ abstract final class ResumeMapper {
 
 /// Row ↔ domain mapping for the analyser history table.
 abstract final class AnalysisMapper {
-  static AnalysisReport fromRow(AnalysisRecord row) {
+  static AnalysisReport fromRow(AnalysisRecordRow row) {
     final Object? decoded = jsonDecode(row.payloadJson);
     if (decoded is! Map<String, dynamic>) {
       return AnalysisReport.empty();

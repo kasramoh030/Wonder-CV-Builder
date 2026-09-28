@@ -106,11 +106,11 @@ class SettingsScreen extends ConsumerWidget {
                   value: settings.defaultPaperSize,
                   underline: const SizedBox.shrink(),
                   items: <DropdownMenuItem<PaperSize>>[
-                    DropdownMenuItem<PaperSize>(
+                    const DropdownMenuItem<PaperSize>(
                       value: PaperSize.a4,
                       child: Text('A4'),
                     ),
-                    DropdownMenuItem<PaperSize>(
+                    const DropdownMenuItem<PaperSize>(
                       value: PaperSize.usLetter,
                       child: Text('Letter'),
                     ),

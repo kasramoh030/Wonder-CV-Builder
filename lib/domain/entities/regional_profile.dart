@@ -120,7 +120,7 @@ class RegionalProfile {
         page: PageGuidance.fromJson(_map(json['page'])),
         ats: AtsPolicy.fromJson(_map(json['ats'])),
         language: LanguagePolicy.fromJson(_map(json['language'])),
-        advisories: (_list(json['advisories']))
+        advisories: _list(json['advisories'])
             .map((Object? e) => RegionalAdvisory.fromJson(_map(e)))
             .toList(growable: false),
       );

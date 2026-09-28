@@ -19,10 +19,14 @@ class WelcomeStep extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
 
     return _StepScaffold(
+      action: FilledButton(
+        onPressed: onNext,
+        child: Text(l10n.onboardingGetStarted),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Spacer(),
+          const SizedBox(height: AppSpacing.xxl),
           Container(
             width: 84,
             height: 84,
@@ -63,11 +67,6 @@ class WelcomeStep extends StatelessWidget {
             icon: Icons.lock_outline_rounded,
             title: l10n.onboardingPrivateTitle,
             body: l10n.onboardingPrivateBody,
-          ),
-          const Spacer(),
-          FilledButton(
-            onPressed: onNext,
-            child: Text(l10n.onboardingGetStarted),
           ),
         ],
       ),
@@ -136,6 +135,7 @@ class LanguageStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _StepScaffold(
+      action: FilledButton(onPressed: onNext, child: Text(l10n.continueLabel)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -155,8 +155,6 @@ class LanguageStep extends StatelessWidget {
                 onTap: () => onSelected(locale.languageCode),
               ),
             ),
-          const Spacer(),
-          FilledButton(onPressed: onNext, child: Text(l10n.continueLabel)),
         ],
       ),
     );
@@ -186,6 +184,7 @@ class CvTypeStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _StepScaffold(
+      action: FilledButton(onPressed: onNext, child: Text(l10n.continueLabel)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -198,11 +197,10 @@ class CvTypeStep extends StatelessWidget {
                 ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: <Widget>[
-                for (final CvType type in CvType.values)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (final CvType type in CvType.values)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: ChoiceCard(
@@ -227,11 +225,8 @@ class CvTypeStep extends StatelessWidget {
                       ),
                   ],
                 ),
-              ],
-            ),
+            ],
           ),
-          const SizedBox(height: AppSpacing.lg),
-          FilledButton(onPressed: onNext, child: Text(l10n.continueLabel)),
         ],
       ),
     );
@@ -257,6 +252,10 @@ class RegionStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _StepScaffold(
+      action: FilledButton(
+        onPressed: onFinish,
+        child: Text(l10n.onboardingCreateFirstCv),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -269,11 +268,10 @@ class RegionStep extends StatelessWidget {
                 ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: <Widget>[
-                for (final RegionCode region in RegionCode.values)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (final RegionCode region in RegionCode.values)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: ChoiceCard(
@@ -287,13 +285,7 @@ class RegionStep extends StatelessWidget {
                       onTap: () => onSelected(region),
                     ),
                   ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          FilledButton(
-            onPressed: onFinish,
-            child: Text(l10n.onboardingCreateFirstCv),
+            ],
           ),
         ],
       ),
@@ -301,10 +293,18 @@ class RegionStep extends StatelessWidget {
   }
 }
 
+/// Layout shared by every onboarding step: a body that scrolls when it does
+/// not fit, and a primary action that stays put at the bottom.
+///
+/// Onboarding is the first thing a user sees, and it has to survive a 320×640
+/// device at 200% text scale as well as a tablet. Keeping the action outside
+/// the scroll view means it is always reachable, and never clipped by content
+/// that grew longer than the viewport.
 class _StepScaffold extends StatelessWidget {
-  const _StepScaffold({required this.child});
+  const _StepScaffold({required this.child, required this.action});
 
   final Widget child;
+  final Widget action;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -314,7 +314,21 @@ class _StepScaffold extends StatelessWidget {
           AppSpacing.xxl,
           AppSpacing.xxl,
         ),
-        child: child,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Expanded(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.md),
+                  child: child,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            action,
+          ],
+        ),
       );
 }
 
