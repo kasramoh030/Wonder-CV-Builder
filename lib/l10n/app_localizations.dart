@@ -259,6 +259,11 @@ abstract class AppLocalizations {
   String get fieldTitle;
   String get fieldSubtitle;
   String get fieldPublisher;
+  String get fieldMonth;
+  String get fieldYear;
+  String get fieldCategory;
+  String get fieldRelationship;
+  String get fieldAuthors;
   String get fieldDoi;
   String get fieldReferenceName;
   String get fieldReferenceTitle;
@@ -304,6 +309,9 @@ abstract class AppLocalizations {
   String get exportPaperSize;
   String get paperA4;
   String get paperLetter;
+  String get pdfWarningPhotoMissing;
+  String get pdfWarningPhotoWithAts;
+  String get pdfWarningLongerThanConvention;
   String get exportFileName;
   String get exportIncludeLinks;
 

@@ -378,6 +378,11 @@ class StringsEn extends AppLocalizations {
   @override
   String get fieldPublisher => 'Journal / publisher';
   @override
+  String get fieldMonth => 'Month';
+  String get fieldYear => 'Year';
+  String get fieldCategory => 'Category';
+  String get fieldRelationship => 'Relationship';
+  String get fieldAuthors => 'Authors';
   String get fieldDoi => 'DOI';
   @override
   String get fieldReferenceName => 'Name';
@@ -462,6 +467,9 @@ class StringsEn extends AppLocalizations {
   @override
   String get paperLetter => 'US Letter (8.5 × 11 in)';
   @override
+  String get pdfWarningPhotoMissing => 'Your photo is not attached to this file.';
+  String get pdfWarningPhotoWithAts => 'This market does not expect a photo on an ATS-parsed CV.';
+  String get pdfWarningLongerThanConvention => 'Longer than the usual length for this market.';
   String get exportFileName => 'File name';
   @override
   String get exportIncludeLinks => 'Include clickable links';
