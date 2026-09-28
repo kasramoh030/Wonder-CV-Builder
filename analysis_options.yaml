@@ -1,0 +1,90 @@
+# CV Pro — static analysis configuration.
+#
+# The goal is a code base that is safe to refactor at scale: strict typing,
+# no implicit dynamic, exhaustive switches, and a curated lint set that
+# favours correctness over style noise.
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    # Correctness issues must fail the build.
+    invalid_annotation_target: ignore
+    missing_required_param: error
+    missing_return: error
+    todo: info
+    # Generated code (drift) is exempt from documentation lints.
+    public_member_api_docs: ignore
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/generated_plugin_registrant.dart"
+    - "build/**"
+  plugins: []
+
+linter:
+  rules:
+    # ── Correctness ────────────────────────────────────────────────────────
+    always_declare_return_types: true
+    avoid_empty_else: true
+    avoid_slow_async_io: true
+    avoid_type_to_string: true
+    cancel_subscriptions: true
+    close_sinks: true
+    collection_methods_unrelated_type: true
+    comment_references: false
+    control_flow_in_finally: true
+    empty_statements: true
+    exhaustive_cases: true
+    hash_and_equals: true
+    no_duplicate_case_values: true
+    test_types_in_equals: true
+    throw_in_finally: true
+    unawaited_futures: true
+    unnecessary_statements: true
+    unrelated_type_equality_checks: true
+    use_build_context_synchronously: true
+
+    # ── Style / maintainability ────────────────────────────────────────────
+    always_put_required_named_parameters_first: true
+    annotate_overrides: true
+    avoid_bool_literals_in_conditional_expressions: true
+    avoid_double_and_int_checks: true
+    avoid_field_initializers_in_const_classes: true
+    avoid_multiple_declarations_per_line: true
+    avoid_positional_boolean_parameters: true
+    avoid_redundant_argument_values: true
+    avoid_returning_null_for_void: true
+    avoid_unused_constructor_parameters: true
+    avoid_void_async: true
+    cascade_invocations: true
+    directives_ordering: true
+    join_return_with_assignment: true
+    leading_newlines_in_multiline_strings: true
+    no_leading_underscores_for_local_identifiers: true
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_const_declarations: true
+    prefer_final_in_for_each: true
+    prefer_final_locals: true
+    prefer_foreach: true
+    prefer_int_literals: true
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    sized_box_for_whitespace: true
+    sort_child_properties_last: true
+    unnecessary_lambdas: true
+    unnecessary_parenthesis: true
+    use_colored_box: true
+    use_decorated_box: true
+    use_enums: true
+    use_if_null_to_convert_nulls_to_bools: true
+    use_is_even_rather_than_modulo: true
+    use_super_parameters: true
+
+    # ── Documentation ──────────────────────────────────────────────────────
+    slash_for_doc_comments: true
