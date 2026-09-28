@@ -6,6 +6,7 @@ import '../../domain/entities/app_settings.dart';
 import '../../features/analyser/analyser_screen.dart';
 import '../../features/builder/builder_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
+import '../../features/dashboard/new_cv_screen.dart';
 import '../../features/importing/import_screen.dart';
 import '../../features/jobs/job_match_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
@@ -20,6 +21,7 @@ import '../theme/app_spacing.dart';
 abstract final class AppRoutes {
   static const String onboarding = 'onboarding';
   static const String dashboard = 'dashboard';
+  static const String newCv = 'newCv';
   static const String templates = 'templates';
   static const String settings = 'settings';
   static const String builder = 'builder';
@@ -89,6 +91,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
                 builder: (BuildContext context, GoRouterState state) =>
                     const DashboardScreen(),
                 routes: <RouteBase>[
+                  GoRoute(
+                    path: 'new',
+                    name: AppRoutes.newCv,
+                    builder: (BuildContext context, GoRouterState state) =>
+                        const NewCvScreen(),
+                  ),
                   GoRoute(
                     path: ':resumeId/edit',
                     name: AppRoutes.builder,
