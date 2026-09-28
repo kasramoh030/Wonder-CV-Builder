@@ -78,20 +78,20 @@ abstract final class AppTheme {
           borderRadius: AppRadius.mdAll,
           borderSide: BorderSide(color: scheme.primary, width: 1.6),
         ),
-        errorBorder: OutlineInputBorder(
+        errorBorder: const OutlineInputBorder(
           borderRadius: AppRadius.mdAll,
-          borderSide: const BorderSide(color: AppColors.critical),
+          borderSide: BorderSide(color: AppColors.critical),
         ),
-        focusedErrorBorder: OutlineInputBorder(
+        focusedErrorBorder: const OutlineInputBorder(
           borderRadius: AppRadius.mdAll,
-          borderSide: const BorderSide(color: AppColors.critical, width: 1.6),
+          borderSide: BorderSide(color: AppColors.critical, width: 1.6),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(52),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
           textStyle: text.labelLarge,
         ),
       ),
@@ -99,21 +99,21 @@ abstract final class AppTheme {
         style: OutlinedButton.styleFrom(
           minimumSize: const Size.fromHeight(52),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
           side: BorderSide(color: scheme.outlineVariant),
           textStyle: text.labelLarge,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.smAll),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.smAll),
           textStyle: text.labelLarge,
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.smAll),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.smAll),
         labelStyle: text.labelMedium,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
@@ -140,17 +140,17 @@ abstract final class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.lgAll),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.lgAll),
         titleTextStyle: text.titleLarge,
         contentTextStyle: text.bodyMedium,
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.smAll),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.smAll),
         contentTextStyle: text.bodyMedium?.copyWith(color: scheme.onInverseSurface),
       ),
       listTileTheme: ListTileThemeData(
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
         titleTextStyle: text.titleSmall,
         subtitleTextStyle: text.bodySmall?.copyWith(
           color: scheme.onSurfaceVariant,

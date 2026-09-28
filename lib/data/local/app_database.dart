@@ -7,6 +7,7 @@ import '../../domain/entities/analysis_report.dart';
 import '../../domain/entities/job_description.dart';
 import '../../domain/entities/resume.dart';
 import '../../domain/entities/resume_content.dart';
+import '../../domain/enums/cv_type.dart';
 import '../../domain/enums/document_options.dart';
 import '../../domain/enums/industry.dart';
 import '../../domain/enums/region_code.dart';

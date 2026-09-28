@@ -840,17 +840,76 @@ class ResumeContent {
   /// Returning `List<DatedEntry>` for sections that hold richer types is not
   /// possible, so this accessor is limited to the sections that genuinely
   /// use [DatedEntry]; richer sections have their own typed getters.
-  List<DatedEntry> datedEntriesFor(SectionKeyLike key) => switch (key) {
-        SectionKeyLike.volunteering => volunteering,
-        SectionKeyLike.courses => courses,
-        SectionKeyLike.researchExperience => researchExperience,
-        SectionKeyLike.teachingExperience => teachingExperience,
-        SectionKeyLike.academicAppointments => academicAppointments,
-        SectionKeyLike.conferences => conferences,
-        SectionKeyLike.presentations => presentations,
-        SectionKeyLike.grants => grants,
-        SectionKeyLike.academicService => academicService,
-        SectionKeyLike.memberships => memberships,
+  List<DatedEntry> datedEntriesFor(SectionKey key) => switch (key) {
+        SectionKey.volunteering => volunteering,
+        SectionKey.courses => courses,
+        SectionKey.researchExperience => researchExperience,
+        SectionKey.teachingExperience => teachingExperience,
+        SectionKey.academicAppointments => academicAppointments,
+        SectionKey.conferences => conferences,
+        SectionKey.presentations => presentations,
+        SectionKey.grants => grants,
+        SectionKey.academicService => academicService,
+        SectionKey.memberships => memberships,
+        _ => const <DatedEntry>[],
+      };
+
+  /// Replaces the collection backing [key]. Lets the builder's generic list
+  /// editor work without a switch over twenty-nine section types.
+  ResumeContent withDatedEntries(SectionKey key, List<DatedEntry> entries) =>
+      switch (key) {
+        SectionKey.volunteering => copyWith(volunteering: entries),
+        SectionKey.courses => copyWith(courses: entries),
+        SectionKey.researchExperience => copyWith(researchExperience: entries),
+        SectionKey.teachingExperience => copyWith(teachingExperience: entries),
+        SectionKey.academicAppointments =>
+          copyWith(academicAppointments: entries),
+        SectionKey.conferences => copyWith(conferences: entries),
+        SectionKey.presentations => copyWith(presentations: entries),
+        SectionKey.grants => copyWith(grants: entries),
+        SectionKey.academicService => copyWith(academicService: entries),
+        SectionKey.memberships => copyWith(memberships: entries),
+        _ => this,
+      };
+
+  /// `true` when [key] holds at least one visible entry, or non-empty body
+  /// text for the narrative sections. The builder uses this to decide
+  /// whether a section is worth rendering at all.
+  bool hasContentFor(SectionKey key) => switch (key) {
+        SectionKey.personal => personal.fullName.isNotEmpty,
+        SectionKey.summary => personal.summary.trim().isNotEmpty,
+        SectionKey.experience => experiences.any((Experience e) => !e.hidden),
+        SectionKey.education => education.any((Education e) => !e.hidden),
+        SectionKey.skills => skills.isNotEmpty,
+        SectionKey.languages => languages.isNotEmpty,
+        SectionKey.projects => projects.any((Project p) => !p.hidden),
+        SectionKey.certifications =>
+          certifications.any((Certification c) => !c.hidden),
+        SectionKey.awards => awards.any((Award a) => !a.hidden),
+        SectionKey.publications => publications.any((Publication p) => !p.hidden),
+        SectionKey.volunteering => volunteering.any((DatedEntry e) => !e.hidden),
+        SectionKey.references => references.any((Reference r) => !r.hidden),
+        SectionKey.courses => courses.any((DatedEntry e) => !e.hidden),
+        SectionKey.researchExperience =>
+          researchExperience.any((DatedEntry e) => !e.hidden),
+        SectionKey.teachingExperience =>
+          teachingExperience.any((DatedEntry e) => !e.hidden),
+        SectionKey.academicAppointments =>
+          academicAppointments.any((DatedEntry e) => !e.hidden),
+        SectionKey.conferences => conferences.any((DatedEntry e) => !e.hidden),
+        SectionKey.presentations => presentations.any((DatedEntry e) => !e.hidden),
+        SectionKey.grants => grants.any((DatedEntry e) => !e.hidden),
+        SectionKey.academicService =>
+          academicService.any((DatedEntry e) => !e.hidden),
+        SectionKey.memberships => memberships.any((DatedEntry e) => !e.hidden),
+        SectionKey.custom => customSections.any((CustomSection s) => !s.hidden),
+        SectionKey.researchInterests => researchInterests.isNotEmpty,
+        SectionKey.interests => interests.isNotEmpty,
+        SectionKey.digitalSkills => digitalSkills.isNotEmpty,
+        SectionKey.keySkills => keySkills.isNotEmpty,
+        SectionKey.additionalInfo => additionalInfo.trim().isNotEmpty,
+        SectionKey.militaryService => militaryService.trim().isNotEmpty,
+        SectionKey.drivingLicence => drivingLicence.trim().isNotEmpty,
       };
 
   ResumeContent copyWith({

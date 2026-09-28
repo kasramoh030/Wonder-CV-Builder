@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "id": "germany",
+  "version": 1,
+  "labelKey": "regionGermany",
+  "summary": "German-market conventions. Applications are usually made with a Lebenslauf, often alongside a cover letter (Anschreiben) and certificates (Zeugnisse).",
+  "paperSize": "a4",
+  "documentLanguage": "de",
+  "acceptedDocumentLanguages": ["de", "en"],
+  "dateSystem": "gregorian",
+  "dateFormat": "MM/YYYY",
+
+  "photo": {
+    "policy": "optional",
+    "conventional": true,
+    "shape": "rounded",
+    "note": "A professional photo is still common on German CVs, but omitting it is widely accepted and is a reasonable default for international applicants. Never required by law."
+  },
+
+  "personalInfo": {
+    "showSensitiveByDefault": false,
+    "conventional": ["nationality", "birthDate", "maritalStatus"],
+    "discouraged": ["nationalId"],
+    "note": "Some German employers still expect date of birth and nationality, but they are not required and their absence is not a legal ground for rejection. They stay hidden until you enable them."
+  },
+
+  "sections": {
+    "order": [
+      "personal",
+      "summary",
+      "experience",
+      "education",
+      "skills",
+      "projects",
+      "certifications",
+      "languages",
+      "additionalInfo",
+      "interests",
+      "references"
+    ],
+    "required": ["personal", "experience", "education", "skills"],
+    "recommended": ["summary", "languages", "certifications", "courses"],
+    "discouraged": ["volunteering"]
+  },
+
+  "page": {
+    "min": 1,
+    "max": 3,
+    "idealMax": 2,
+    "note": "Two pages is the norm for experienced candidates. A one-page Lebenslauf is acceptable early in a career."
+  },
+
+  "ats": {
+    "strictness": "medium",
+    "photoOnAts": false,
+    "notes": [
+      "Large employers and staffing agencies increasingly parse applications automatically; a single-column, photo-free version is the safer choice for those pipelines.",
+      "Certificates are frequently requested as separate attachments rather than as CV sections."
+    ]
+  },
+
+  "language": {
+    "expectedTone": "formal",
+    "verbTensePreference": "past",
+    "notes": [
+      "German applications are typically written in the formal register (Sie), even when the advert is informal.",
+      "If the advert is published in English, an English CV is normally acceptable — this app offers both."
+    ]
+  },
+
+  "advisories": [
+    {
+      "code": "regional.de.zeugnisse",
+      "severity": "info",
+      "text": "German employers often expect copies of degrees and employment references as separate attachments."
+    },
+    {
+      "code": "regional.de.signature",
+      "severity": "info",
+      "text": "A handwritten or digital signature with place and date at the end of the CV is a long-standing convention. It is optional and increasingly omitted."
+    },
+    {
+      "code": "regional.de.gapExplanation",
+      "severity": "info",
+      "text": "Long unexplained gaps in a German CV attract more attention than in most markets; a short factual note in the relevant entry is usually enough."
+    }
+  ]
+}

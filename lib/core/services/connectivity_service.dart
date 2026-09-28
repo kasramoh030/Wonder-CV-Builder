@@ -132,4 +132,4 @@ final StreamProvider<ConnectivityStatus> connectivityStatusProvider =
     StreamProvider<ConnectivityStatus>((Ref ref) {
   final ConnectivityService service = ref.watch(connectivityServiceProvider);
   return service.changes;
-}, initialValue: ConnectivityStatus.unknown);
+});

@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "id": "iran",
+  "version": 1,
+  "labelKey": "regionIran",
+  "summary": "Iranian-market conventions. Applications commonly arrive as a رزومه (resume) attached to a covering message on job boards, and increasingly through company application forms.",
+  "paperSize": "a4",
+  "documentLanguage": "fa",
+  "acceptedDocumentLanguages": ["fa", "en"],
+  "dateSystem": "gregorian",
+  "dateSystemOptions": ["gregorian", "jalali"],
+  "dateFormat": "MM/YYYY",
+
+  "photo": {
+    "policy": "optional",
+    "conventional": true,
+    "shape": "square",
+    "note": "A formal photo is common on Iranian resumes and appears more often than in Western markets. It is optional; many companies and all ATS pipelines work better without one."
+  },
+
+  "personalInfo": {
+    "showSensitiveByDefault": false,
+    "conventional": ["city", "province"],
+    "discouraged": ["nationalId", "birthDate", "maritalStatus", "address"],
+    "neverIncludeByDefault": ["nationalId", "address"],
+    "note": "National ID (کد ملی) and a full home address are personal data with no recruiting value at the screening stage. They are disabled by default and must be switched on deliberately. Military-service status is handled as its own section because some employers do ask for it."
+  },
+
+  "sections": {
+    "order": [
+      "personal",
+      "summary",
+      "experience",
+      "education",
+      "skills",
+      "projects",
+      "courses",
+      "certifications",
+      "languages",
+      "militaryService",
+      "awards",
+      "publications",
+      "references"
+    ],
+    "required": ["personal", "experience", "education", "skills"],
+    "recommended": ["summary", "projects", "courses", "languages"],
+    "discouraged": []
+  },
+
+  "page": {
+    "min": 1,
+    "max": 3,
+    "idealMax": 2,
+    "note": "One to two pages is typical for most roles; academic and senior engineering CVs may run longer."
+  },
+
+  "ats": {
+    "strictness": "low",
+    "photoOnAts": false,
+    "notes": [
+      "Large technology employers and international companies recruiting in Iran frequently use English-language ATS pipelines; keep a single-column, text-based version for those.",
+      "Persian text must be laid out right-to-left with correct letter joining, otherwise the file becomes unreadable in some viewers."
+    ]
+  },
+
+  "language": {
+    "expectedTone": "formal",
+    "verbTensePreference": "past",
+    "notes": [
+      "Persian resumes are usually written in a formal register using the past tense for completed roles.",
+      "Persian and English CVs are both accepted; English is expected for multinationals and for remote roles."
+    ]
+  },
+
+  "advisories": [
+    {
+      "code": "regional.ir.functionalResume",
+      "severity": "info",
+      "text": "Functional (skills-first) resumes are uncommon in Iran; the reverse-chronological structure is what most reviewers expect."
+    },
+    {
+      "code": "regional.ir.militaryService",
+      "severity": "info",
+      "text": "Military-service status is requested by some employers as a separate field. It is available as an optional section and is never added automatically."
+    },
+    {
+      "code": "regional.ir.gregorianDates",
+      "severity": "info",
+      "text": "The Persian (Jalali) calendar is the local norm, but most job boards and all international ATS parsers expect Gregorian dates. Use Jalali for domestic applications and Gregorian for anything crossing a border."
+    }
+  ]
+}

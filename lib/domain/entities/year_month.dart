@@ -1,5 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 
+part 'year_month.g.dart';
+
 /// A calendar month with an *optional* day component.
 ///
 /// CVs are written in months and years far more often than exact days

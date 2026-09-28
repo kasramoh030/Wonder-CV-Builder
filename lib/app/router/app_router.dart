@@ -10,6 +10,7 @@ import '../../features/importing/import_screen.dart';
 import '../../features/jobs/job_match_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/preview/preview_screen.dart';
+import '../../features/settings/settings_providers.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/shell/app_shell.dart';
 import '../../features/templates/templates_screen.dart';
