@@ -6,24 +6,33 @@
   "summary": "German-market conventions. Applications are usually made with a Lebenslauf, often alongside a cover letter (Anschreiben) and certificates (Zeugnisse).",
   "paperSize": "a4",
   "documentLanguage": "de",
-  "acceptedDocumentLanguages": ["de", "en"],
+  "acceptedDocumentLanguages": [
+    "de",
+    "en"
+  ],
   "dateSystem": "gregorian",
+  "dateSystemOptions": [
+    "gregorian"
+  ],
   "dateFormat": "MM/YYYY",
-
   "photo": {
     "policy": "optional",
     "conventional": true,
     "shape": "rounded",
     "note": "A professional photo is still common on German CVs, but omitting it is widely accepted and is a reasonable default for international applicants. Never required by law."
   },
-
   "personalInfo": {
     "showSensitiveByDefault": false,
-    "conventional": ["nationality", "birthDate", "maritalStatus"],
-    "discouraged": ["nationalId"],
+    "conventional": [
+      "nationality",
+      "birthDate",
+      "maritalStatus"
+    ],
+    "discouraged": [
+      "nationalId"
+    ],
     "note": "Some German employers still expect date of birth and nationality, but they are not required and their absence is not a legal ground for rejection. They stay hidden until you enable them."
   },
-
   "sections": {
     "order": [
       "personal",
@@ -38,18 +47,28 @@
       "interests",
       "references"
     ],
-    "required": ["personal", "experience", "education", "skills"],
-    "recommended": ["summary", "languages", "certifications", "courses"],
-    "discouraged": ["volunteering"]
+    "required": [
+      "personal",
+      "experience",
+      "education",
+      "skills"
+    ],
+    "recommended": [
+      "summary",
+      "languages",
+      "certifications",
+      "courses"
+    ],
+    "discouraged": [
+      "volunteering"
+    ]
   },
-
   "page": {
     "min": 1,
     "max": 3,
     "idealMax": 2,
     "note": "Two pages is the norm for experienced candidates. A one-page Lebenslauf is acceptable early in a career."
   },
-
   "ats": {
     "strictness": "medium",
     "photoOnAts": false,
@@ -58,7 +77,6 @@
       "Certificates are frequently requested as separate attachments rather than as CV sections."
     ]
   },
-
   "language": {
     "expectedTone": "formal",
     "verbTensePreference": "past",
@@ -67,7 +85,6 @@
       "If the advert is published in English, an English CV is normally acceptable — this app offers both."
     ]
   },
-
   "advisories": [
     {
       "code": "regional.de.zeugnisse",

@@ -75,6 +75,22 @@ class JobDescriptionAnalyzer {
     'آشنایی با', 'تسلط بر',
   ];
 
+  /// Multi-word terms from the vocabulary (`machine learning`, `power bi`).
+  /// These survive de-duplication because the phrase carries meaning the
+  /// individual words do not.
+  Set<String> get compoundTerms => <String>{
+        for (final Set<String> domain in _vocabulary.roleKeywords.values)
+          ...domain.where((String term) => term.contains(' ')),
+      };
+
+  /// Terms shorter than four characters that are nonetheless real
+  /// technologies: Go, R, JS, AI, ML. Without this, the extractor would drop
+  /// them and a Go role would report every keyword except the language.
+  Set<String> get shortTerms => <String>{
+        for (final Set<String> domain in _vocabulary.roleKeywords.values)
+          ...domain.where((String term) => term.length < 4),
+      };
+
   /// Phrases that mark a skill as a nice-to-have rather than a must.
   static const List<String> _preferredMarkers = <String>[
     'nice to have', 'a plus', 'bonus', 'desirable', 'advantageous',
@@ -337,16 +353,39 @@ class JobDescriptionAnalyzer {
         return (counts[b] ?? 0).compareTo(counts[a] ?? 0);
       });
 
+    final Set<String> compounds = compoundTerms;
+    final Set<String> shorts = shortTerms;
     final List<String> chosen = <String>[];
-    for (final String candidate in ranked) {
+    final Set<String> chosenSet = <String>{};
+
+    void take(String candidate) {
+      if (chosenSet.add(candidate)) chosen.add(candidate);
+    }
+
+    // Single words first. They match a CV directly, whereas a phrase only
+    // matches if the CV happens to use the same two words in that order.
+    for (final String candidate in ranked.where((String c) => !c.contains(' '))) {
       final int count = counts[candidate] ?? 0;
-      final bool singleWord = !candidate.contains(' ');
-      if (singleWord && count < 2 && !inRequirementBlock) continue;
-      if (singleWord && candidate.length < 4) continue;
-      if (singleWord && chosen.any((String c) => c.contains(candidate))) {
+      if (candidate.length < 4 && !shorts.contains(candidate)) continue;
+      if (count < 2 && !inRequirementBlock && !shorts.contains(candidate)) {
         continue;
       }
-      chosen.add(candidate);
+      take(candidate);
+      if (chosen.length >= 30) return chosen;
+    }
+
+    // Then phrases: kept when the vocabulary calls them a term of art, or when
+    // they contain a word that was not significant enough to stand alone.
+    // "postgresql kubernetes" is therefore dropped once both words are in,
+    // while "machine learning" is kept.
+    for (final String candidate in ranked.where((String c) => c.contains(' '))) {
+      final List<String> words = candidate.split(' ');
+      final bool curated = compounds.contains(candidate);
+      final bool addsSomething =
+          words.any((String w) => !chosenSet.contains(w));
+      if (!curated && !addsSomething) continue;
+      if (words.every((String w) => w.length < 3)) continue;
+      take(candidate);
       if (chosen.length >= 30) break;
     }
     return chosen;
