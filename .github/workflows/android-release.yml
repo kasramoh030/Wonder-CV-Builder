@@ -12,6 +12,11 @@ name: Android release
 #   ANDROID_KEY_ALIAS           the key alias inside it
 #   ANDROID_KEY_PASSWORD        that key's password
 #
+# The shorter names — KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS and
+# KEY_PASSWORD — are accepted too, because they are what most guides use, and
+# requiring a rename before the first release is a pointless reason to be
+# blocked. Either naming works; whatever is missing is named in the failure.
+#
 # See docs/RELEASE.md.
 
 on:
@@ -53,35 +58,53 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Check the signing secrets are present
-        id: secrets
+      - name: Resolve the signing secrets
+        id: signing
         env:
-          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEYSTORE_LONG: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_SHORT: ${{ secrets.KEYSTORE_BASE64 }}
+          PASSWORD_LONG: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          PASSWORD_SHORT: ${{ secrets.KEYSTORE_PASSWORD }}
+          ALIAS_LONG: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ALIAS_SHORT: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD_LONG: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_PASSWORD_SHORT: ${{ secrets.KEY_PASSWORD }}
         run: |
+          set -e
+          keystore="${KEYSTORE_LONG:-$KEYSTORE_SHORT}"
+          store_password="${PASSWORD_LONG:-$PASSWORD_SHORT}"
+          alias="${ALIAS_LONG:-$ALIAS_SHORT}"
+          key_password="${KEY_PASSWORD_LONG:-$KEY_PASSWORD_SHORT}"
+
           missing=""
-          [ -n "$KEYSTORE" ]       || missing="$missing ANDROID_KEYSTORE_BASE64"
-          [ -n "$STORE_PASSWORD" ] || missing="$missing ANDROID_KEYSTORE_PASSWORD"
-          [ -n "$KEY_ALIAS" ]      || missing="$missing ANDROID_KEY_ALIAS"
-          [ -n "$KEY_PASSWORD" ]   || missing="$missing ANDROID_KEY_PASSWORD"
+          [ -n "$keystore" ]       || missing="$missing KEYSTORE_BASE64"
+          [ -n "$store_password" ] || missing="$missing KEYSTORE_PASSWORD"
+          [ -n "$alias" ]          || missing="$missing KEY_ALIAS"
+          [ -n "$key_password" ]   || missing="$missing KEY_PASSWORD"
           if [ -n "$missing" ]; then
             echo "::error::Missing signing secret(s):$missing"
             echo "The release build refuses to run rather than produce an APK signed with the debug key."
-            echo "Add them under Settings → Secrets and variables → Actions. See docs/RELEASE.md."
+            echo "Add them under Settings -> Secrets and variables -> Actions. See docs/RELEASE.md."
             exit 1
           fi
-          echo "All four signing secrets are present."
+
+          # Handed to the later steps through the environment, not the log.
+          # Every value originates in a secret, so Actions masks it wherever it
+          # might otherwise appear.
+          {
+            echo "KEYSTORE_B64=$keystore"
+            echo "STORE_PASSWORD=$store_password"
+            echo "KEY_ALIAS=$alias"
+            echo "KEY_PASSWORD=$key_password"
+          } >> "$GITHUB_ENV"
+          echo "All four signing values are present."
 
       - name: Write the keystore
-        env:
-          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           set -e
           # Written to the runner's tmp, never to the workspace, so it cannot
           # be picked up by an artifact upload or a stray git add.
-          printf '%s' "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload-keystore.jks"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload-keystore.jks"
           echo "keystore written ($(stat -c%s "$RUNNER_TEMP/upload-keystore.jks") bytes)"
 
       - name: Resolve dependencies
@@ -110,17 +133,17 @@ jobs:
       - name: Build signed release APK
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/upload-keystore.jks
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ env.STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ env.KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
         run: flutter build apk --release
 
       - name: Build signed release AAB
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/upload-keystore.jks
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ env.STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ env.KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
         run: flutter build appbundle --release
 
       - name: Collect artifacts under their release names
