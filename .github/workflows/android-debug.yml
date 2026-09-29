@@ -59,6 +59,44 @@ jobs:
           tail -c 40000 /tmp/apk_debug.txt
           exit 0
 
+      # Inspect what was actually built, on every push: identity, version,
+      # target SDK, permissions, exported components, native ABIs and any
+      # accidental key material. The debug key is expected here, so the script
+      # is told not to fail on it — the release workflow checks that part for
+      # real, with the release artifact.
+      - name: Inspect the APK
+        id: inspect
+        if: steps.apk.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set +e
+          APK=$(ls build/app/outputs/flutter-apk/*.apk | head -1)
+          bash tools/verify_release_artifact.sh --allow-debug-signature "$APK" > /tmp/inspect.txt 2>&1
+          echo "inspect_code=$?" >> /tmp/android_codes.env
+          cat /tmp/inspect.txt
+          exit 0
+
+      - name: Publish the inspection table
+        if: always() && github.event_name == 'push' && hashFiles('/tmp/inspect.txt') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          {
+            echo "## APK inspection for ${GITHUB_SHA:0:7}"
+            echo
+            echo '```'
+            cat /tmp/inspect.txt
+            echo '```'
+          } > /tmp/inspect_report.md
+          payload=$(python3 -c 'import json; print(json.dumps({"body": open("/tmp/inspect_report.md").read()}))')
+          curl -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+            -d "$payload" > /dev/null
+
       - name: Publish Android diagnostics as a commit comment
         if: always() && steps.apk.outcome == 'failure'
         env:
@@ -107,7 +145,7 @@ jobs:
           path: build/app/outputs/flutter-apk/*.apk
           if-no-files-found: warn
 
-      - name: Fail if the build failed
+      - name: Fail if the build or the inspection failed
         if: always()
         run: |
           if [ ! -f /tmp/android_codes.env ]; then
@@ -117,6 +155,13 @@ jobs:
           # shellcheck disable=SC1091
           . /tmp/android_codes.env
           echo "debug build exit: ${debug_code:-unset}"
+          echo "apk inspection exit: ${inspect_code:-not run}"
           if [ "${debug_code:-1}" != "0" ]; then
+            exit 1
+          fi
+          # A smoke build that produces an APK with the wrong package, an
+          # unexpected permission or an exported component nobody meant to
+          # export is a failure even though Gradle succeeded.
+          if [ "${inspect_code:-1}" != "0" ]; then
             exit 1
           fi

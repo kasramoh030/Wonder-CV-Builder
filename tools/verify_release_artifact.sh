@@ -7,13 +7,23 @@
 #
 # Exits non-zero on any finding that would block a release.
 #
-# Usage: tools/verify_release_artifact.sh <app-release.apk> [app-release.aab]
+# Usage: tools/verify_release_artifact.sh [--allow-debug-signature] <apk> [aab]
+#
+# --allow-debug-signature  use on the per-push debug smoke build, where the
+#                          debug key is expected; the signature is then
+#                          reported as INFO instead of failing.
 #
 # Requires the Android SDK build-tools (aapt2, apksigner) and a JDK
 # (jarsigner, keytool). Both are present on GitHub's ubuntu runners; locally,
 # set ANDROID_HOME or ANDROID_SDK_ROOT.
 
 set -uo pipefail
+
+allow_debug_signature=0
+if [ "${1:-}" = "--allow-debug-signature" ]; then
+  allow_debug_signature=1
+  shift
+fi
 
 APK="${1:-}"
 AAB="${2:-}"
@@ -122,7 +132,11 @@ schemes="$(printf '%s\n' "$signer" | sed -n 's/^Verified using \(.*\) \(v[0-9]\)
 if [ -z "$cert_dn" ]; then
   fail "signing certificate" "no certificate reported"
 elif printf '%s' "$cert_dn" | grep -qi 'Android Debug'; then
-  fail "signing certificate" "signed with the DEBUG key ($cert_dn) — not publishable"
+  if [ "$allow_debug_signature" = "1" ]; then
+    info "signing certificate" "debug key (expected for the smoke build; not publishable)"
+  else
+    fail "signing certificate" "signed with the DEBUG key ($cert_dn) — not publishable"
+  fi
 else
   pass "signing certificate" "$cert_dn"
 fi
@@ -182,7 +196,11 @@ if [ -n "$AAB" ] && [ -f "$AAB" ]; then
   if jarsigner -verify "$AAB" >/dev/null 2>&1; then
     bundle_dn="$(jarsigner -verify -verbose -certs "$AAB" 2>/dev/null | sed -n 's/^.*CN=\([^,]*\).*/\1/p' | head -1)"
     if printf '%s' "$bundle_dn" | grep -qi 'Android Debug'; then
-      fail "bundle signature" "signed with the DEBUG key"
+      if [ "$allow_debug_signature" = "1" ]; then
+        info "bundle signature" "debug key (expected for the smoke build)"
+      else
+        fail "bundle signature" "signed with the DEBUG key"
+      fi
     else
       pass "bundle signature" "verified (CN=${bundle_dn:-unknown})"
     fi
