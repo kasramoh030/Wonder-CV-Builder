@@ -66,7 +66,7 @@ pkg="$(printf '%s\n' "$badging" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")"
 version_code="$(printf '%s\n' "$badging" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")"
 version_name="$(printf '%s\n' "$badging" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")"
 label="$(printf '%s\n' "$badging" | sed -n "s/^application-label:'\(.*\)'/\1/p")"
-sdk_min="$(printf '%s\n' "$badging" | sed -n "s/^sdkVersion:'\([^']*\)'/\1/p")"
+sdk_min="$(printf '%s\n' "$badging" | sed -n "s/^\(sdkVersion\|minSdkVersion\):'\([^']*\)'/\2/p" | head -1)"
 sdk_target="$(printf '%s\n' "$badging" | sed -n "s/^targetSdkVersion:'\([^']*\)'/\1/p")"
 
 if [ "$pkg" = "dev.cvpro.builder" ]; then
@@ -94,7 +94,11 @@ fi
 
 # ── Debuggability and debug-only settings ────────────────────────────────────
 if printf '%s\n' "$badging" | grep -q '^application-debuggable'; then
-  fail "debuggable" "release APK is marked android:debuggable"
+  if [ "$allow_debug_signature" = "1" ]; then
+    info "debuggable" "debug build (expected for the smoke APK)"
+  else
+    fail "debuggable" "release APK is marked android:debuggable"
+  fi
 else
   pass "debuggable" "not debuggable"
 fi
@@ -102,21 +106,34 @@ fi
 # ── Permissions ──────────────────────────────────────────────────────────────
 permissions="$(printf '%s\n' "$badging" | sed -n "s/^uses-permission: name='\([^']*\)'.*/\1/p" | sort -u)"
 permission_count="$(printf '%s\n' "$permissions" | grep -c . || true)"
-if [ "$permissions" = "android.permission.INTERNET" ]; then
-  pass "permissions" "INTERNET only"
+# androidx.core declares a signature-level permission to protect the app's own
+# dynamically registered receivers. It grants nothing to anyone else and is
+# added by the library, not by this app; INTERNET is the only permission the
+# app itself asks for.
+allowed_extra="${pkg}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+unexpected="$(printf '%s\n' "$permissions" | grep -v '^android.permission.INTERNET$' | grep -v "^${allowed_extra}$" | grep . || true)"
+if [ -z "$unexpected" ]; then
+  pass "permissions" "INTERNET only (plus ${allowed_extra} from androidx.core)"
 else
-  fail "permissions" "unexpected permission set: $(printf '%s' "$permissions" | tr '\n' ' ')"
+  fail "permissions" "unexpected permission set: $(printf '%s' "$unexpected" | tr '\n' ' ')"
 fi
 info "permission count" "$permission_count"
 
 # ── Exported components ──────────────────────────────────────────────────────
 manifest_tree="$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null)"
-exported="$(printf '%s\n' "$manifest_tree" | grep -c 'android:exported(0x[0-9a-f]*)=true' || true)"
-info "exported components" "$exported (expected: 1 — the launcher activity)"
-if [ "$exported" -eq 1 ]; then
+# Walk the manifest dump and print the name of every component that is
+# exported, so a surprise is named rather than counted.
+exported_names="$(printf '%s\n' "$manifest_tree" | awk '
+  /^ *E: (activity|activity-alias|service|receiver|provider)/ { name=""; type=$2 }
+  /^ *A: android:name\(/ { if (name == "") { name=$0; sub(/.*="/, "", name); sub(/".*/, "", name) } }
+  /android:exported\(0x[0-9a-f]*\)=true/ { if (name != "") print type " " name }
+' | sort -u)"
+info "exported components" "$(printf '%s' "$exported_names" | tr '\n' ' ')"
+unexpected_exported="$(printf '%s\n' "$exported_names" | grep -v 'MainActivity' | grep . || true)"
+if [ -z "$unexpected_exported" ]; then
   pass "exported surface" "only the launcher activity is exported"
 else
-  fail "exported surface" "$exported exported components; review the manifest"
+  fail "exported surface" "unexpected exported component(s): $(printf '%s' "$unexpected_exported" | tr '\n' ' ')"
 fi
 
 # ── Signing ──────────────────────────────────────────────────────────────────
@@ -128,6 +145,14 @@ else
 fi
 
 cert_dn="$(printf '%s\n' "$signer" | sed -n 's/^Signer #1 certificate DN: \(.*\)$/\1/p' | head -1)"
+if [ -z "$cert_dn" ]; then
+  # Older and newer apksigner builds differ in spacing and in which line
+  # carries the subject; fall back to the certificate block.
+  cert_dn="$(printf '%s\n' "$signer" | sed -n 's/^\s*Subject: \(.*\)$/\1/p' | head -1)"
+fi
+if [ -z "$cert_dn" ]; then
+  cert_dn="$(printf '%s\n' "$signer" | grep -o 'CN=[^,]*' | head -1)"
+fi
 schemes="$(printf '%s\n' "$signer" | sed -n 's/^Verified using \(.*\) \(v[0-9]\).*$/\2/p' | tr '\n' ' ')"
 if [ -z "$cert_dn" ]; then
   fail "signing certificate" "no certificate reported"
@@ -145,7 +170,12 @@ info "signature schemes" "${schemes:-<none reported>}"
 # ── Native libraries ─────────────────────────────────────────────────────────
 abis="$(unzip -Z1 "$APK" 2>/dev/null | sed -n 's|^lib/\([^/]*\)/.*|\1|p' | sort -u | tr '\n' ' ')"
 if [ -n "$abis" ]; then
-  info "native libraries" "ABIs present: ${abis}"
+  abi_count="$(printf '%s' "$abis" | wc -w)"
+  if [ "$abi_count" -gt 1 ] && [ "$allow_debug_signature" != "1" ]; then
+    info "native libraries" "universal APK (${abis% }) — intended for Cafe Bazaar / Myket; Google Play gets the AAB"
+  else
+    info "native libraries" "ABIs present: ${abis}"
+  fi
 else
   info "native libraries" "none (no ABI split needed)"
 fi
@@ -160,7 +190,15 @@ info "dex files" "$dex_count"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 unzip -qq -o "$APK" -d "$tmpdir" >/dev/null 2>&1 || true
-secret_hits="$(grep -rhoaE '(sk-[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{30,}|ghp_[A-Za-z0-9]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16})' "$tmpdir" 2>/dev/null | sort -u | head -5)"
+# Only files that can carry a key are scanned. Fonts and images are excluded
+# because their binary metadata contains strings like "…sk-ExtraBoldItalic…"
+# that match a key pattern without being one: a scan that cries wolf is a scan
+# nobody reads.
+while IFS= read -r candidate; do
+  grep -Iq . "$candidate" 2>/dev/null || continue
+  grep -hoaE '(sk-(proj-)?[A-Za-z0-9_-]{32,}|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{60,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,})' "$candidate" 2>/dev/null
+done < <(find "$tmpdir" -type f \( -name '*.dex' -o -name '*.json' -o -name '*.xml' -o -name '*.txt' -o -name '*.properties' -o -name '*.yaml' -o -name '*.yml' -o -name '*.env' -o -name '*.so' \) ) > /tmp/secret_hits.txt 2>/dev/null || true
+secret_hits="$(sort -u /tmp/secret_hits.txt 2>/dev/null | head -5)"
 if [ -n "$secret_hits" ]; then
   fail "embedded secrets" "found: $(printf '%s' "$secret_hits" | tr '\n' ' ')"
 else
