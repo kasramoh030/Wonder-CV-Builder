@@ -28,6 +28,15 @@ fi
 APK="${1:-}"
 AAB="${2:-}"
 
+# "/dev/null" means "there is no APK to inspect, only the bundle" — the smoke
+# build on a runner without a signing key still has an app bundle worth
+# checking. It has to be recognised before the existence check, because
+# /dev/null is not a regular file. The APK section below is skipped rather than
+# indented: it contains an embedded Python program, and re-indenting shell text
+# is how that program silently stops being Python.
+if [ "$APK" = "/dev/null" ]; then
+  APK=""
+fi
 if [ -z "$APK" ] && [ -z "$AAB" ]; then
   echo "usage: $0 [--allow-debug-signature] <release.apk> [release.aab]" >&2
   exit 2
@@ -36,23 +45,17 @@ if [ -n "$APK" ] && [ ! -f "$APK" ]; then
   echo "error: no such APK: $APK" >&2
   exit 2
 fi
-
-# "/dev/null" means "there is no APK to inspect, only the bundle" — the smoke
-# build on a runner without a signing key still has an app bundle worth
-# checking. The APK section below is skipped rather than indented: the block
-# contains an embedded Python program, and re-indenting shell text is how that
-# program silently stops being Python.
-check_apk=1
-if [ "$APK" = "/dev/null" ] || [ ! -f "$APK" ]; then
-  check_apk=0
+if [ -n "$AAB" ] && [ ! -f "$AAB" ]; then
+  echo "error: no such AAB: $AAB" >&2
+  exit 2
 fi
-if [ "$check_apk" = "1" ]; then
-
 failures=0
 report() { printf '%-34s | %-6s | %s\n' "$1" "$2" "$3"; }
 pass()   { report "$1" "PASS" "$2"; }
 fail()   { report "$1" "FAIL" "$2"; failures=$((failures + 1)); }
 info()   { report "$1" "INFO" "$2"; }
+
+if [ "$APK" != "" ]; then
 
 # ── Locate the SDK tools ─────────────────────────────────────────────────────
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
