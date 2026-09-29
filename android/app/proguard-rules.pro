@@ -26,6 +26,21 @@
 }
 -keep class * implements io.flutter.embedding.engine.plugins.FlutterPlugin { *; }
 
+# Flutter's deferred-components support is compiled into the engine and
+# references the Play Core library, which is only on the classpath when an app
+# actually ships deferred components. This app does not, so R8 sees a dozen
+# references to classes that do not exist and — in the full mode AGP 9 runs by
+# default — fails the build outright:
+#
+#     Missing class com.google.android.play.core.splitinstall.SplitInstallManager
+#     Execution failed for task ':app:minifyReleaseWithR8'.
+#
+# The code is unreachable in this app (nothing constructs the deferred
+# component manager), so suppressing the warning is correct rather than a
+# workaround: it neither adds a dependency that would be dead weight nor hides
+# a class that could ever be loaded.
+-dontwarn com.google.android.play.core.**
+
 # Plugins that reach into the Android framework by reflection.
 #   printing      — PDF printing / share adapters
 #   file_picker   — document URIs and file metadata
