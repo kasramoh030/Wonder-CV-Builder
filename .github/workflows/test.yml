@@ -45,14 +45,28 @@ jobs:
           code=$?
           echo "test_code=$code" >> /tmp/codes.env
           cat /tmp/test.txt
-          exit 0
+          # Exit with the real code so that `steps.tests.outcome` is
+          # 'failure' and the diagnostics below run. `continue-on-error`
+          # keeps the job alive; ending with `exit 0` would make the outcome
+          # 'success' and silently skip the report — which is how a failing
+          # suite once produced a red build with no readable reason.
+          exit $code
 
       - name: Publish diagnostics as a commit comment
-        if: always() && steps.tests.outcome == 'failure'
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
+          test_code=0
+          if [ -f /tmp/codes.env ]; then
+            # shellcheck disable=SC1091
+            . /tmp/codes.env
+          fi
+          if [ "$test_code" = "0" ]; then
+            echo "Tests passed; no diagnostics to publish."
+            exit 0
+          fi
           {
             echo "## Test diagnostics for ${GITHUB_SHA:0:7}"
             echo

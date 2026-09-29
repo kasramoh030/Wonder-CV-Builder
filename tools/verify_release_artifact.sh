@@ -155,8 +155,15 @@ for line in sys.stdin:
         kind, name = None, None
 ' | sort -u)"
 info "exported components" "${exported_names:-<none found>}"
-allowed_exported="$(printf '%s\n' "$exported_names" | grep -E '\.?MainActivity$' | grep . || true)"
-unexpected_exported="$(printf '%s\n' "$exported_names" | grep -vE '\.?MainActivity$' | grep . || true)"
+# Two exported components are expected in a Flutter app:
+#  * the launcher activity, which is the app's only entry point;
+#  * androidx.profileinstaller.ProfileInstallReceiver, which the Flutter
+#    embedding ships to install a baseline profile at install time. It is
+#    protected by android.permission.DUMP, a signature/privileged permission
+#    no ordinary app can hold, and it carries no app data.
+allowed_pattern='MainActivity|ProfileInstallReceiver'
+allowed_exported="$(printf '%s\n' "$exported_names" | grep -E "$allowed_pattern" | grep . || true)"
+unexpected_exported="$(printf '%s\n' "$exported_names" | grep -vE "$allowed_pattern" | grep . || true)"
 if [ -z "$exported_names" ]; then
   fail "exported surface" "no exported component found at all — the manifest dump was not parsed"
 elif [ -z "$unexpected_exported" ] && [ -n "$allowed_exported" ]; then

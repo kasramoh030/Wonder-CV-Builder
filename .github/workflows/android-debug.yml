@@ -55,9 +55,14 @@ jobs:
           set +e
           rm -f /tmp/android_codes.env
           flutter build apk --debug > /tmp/apk_debug.txt 2>&1
-          echo "debug_code=$?" >> /tmp/android_codes.env
+          code=$?
+          echo "debug_code=$code" >> /tmp/android_codes.env
           tail -c 40000 /tmp/apk_debug.txt
-          exit 0
+          # The real code, not 0: with `continue-on-error` this keeps the job
+          # alive while still marking the step failed, which is what the
+          # diagnostics step below keys off. Ending with `exit 0` makes a
+          # failed build report success and produce no report at all.
+          exit $code
 
       # Inspect what was actually built, on every push: identity, version,
       # target SDK, permissions, exported components, native ABIs and any
@@ -74,7 +79,7 @@ jobs:
           bash tools/verify_release_artifact.sh --allow-debug-signature "$APK" > /tmp/inspect.txt 2>&1
           echo "inspect_code=$?" >> /tmp/android_codes.env
           cat /tmp/inspect.txt
-          exit 0
+          exit 0   # a failing inspection is reported, not fatal to this step
 
       - name: Publish the inspection table
         if: always() && github.event_name == 'push' && steps.inspect.outcome != 'skipped'
@@ -98,7 +103,7 @@ jobs:
             -d "$payload" > /dev/null
 
       - name: Publish Android diagnostics as a commit comment
-        if: always() && steps.apk.outcome == 'failure'
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -107,6 +112,10 @@ jobs:
           if [ -f /tmp/android_codes.env ]; then
             # shellcheck disable=SC1091
             . /tmp/android_codes.env
+          fi
+          if [ "${debug_code:-0}" = "0" ]; then
+            echo "The debug build succeeded; no diagnostics to publish."
+            exit 0
           fi
           {
             echo "## Android debug build diagnostics for ${GITHUB_SHA:0:7}"
