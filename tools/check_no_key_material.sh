@@ -17,8 +17,10 @@
 #   * key material by content: PEM private-key headers, base64 blobs that
 #     decode to a JKS/PKCS12 magic number, and the shapes of the API keys this
 #     project could plausibly use;
-#   * passwords assigned as literals in a properties or YAML file, which is how
-#     a keystore password reaches a commit while the keystore itself does not.
+#   * credentials written as literals — a quoted value anywhere, or an unquoted
+#     value in properties, YAML or JSON — which is how a keystore password
+#     reaches a commit while the keystore itself does not. A line that reads
+#     its value from the environment is not a literal, and is not reported.
 #
 # It scans *text* files only. Fonts and images contain byte sequences that
 # match key patterns without being keys, and a guard that cries wolf is a
@@ -114,17 +116,42 @@ else
 fi
 
 # ── Passwords written as literals ────────────────────────────────────────────
+#
+# The two shapes here must be told apart, because a guard that cannot is a
+# guard people learn to bypass. `storePassword = releaseStorePassword` in a
+# Gradle file refers to a variable; it is exactly how the release build is
+# *supposed* to read its credentials out of the environment. The same line with
+# `storePassword = "hunter2"` has the secret committed to the repository. So a
+# quoted value counts as a literal anywhere, and only in the formats where an
+# unquoted value is data rather than a reference — properties, YAML, JSON —
+# does a bare value count as one too.
+#
+# This file is skipped here on purpose: it quotes the pattern it looks for, and
+# a checker that reports its own documentation teaches people to ignore it. The
+# other checks still read it, so key material hidden in here would not survive.
 
-literal_hits="$(git ls-files 2>/dev/null | grep -E '\.(properties|ya?ml|json|gradle|kts)$' | while read -r candidate; do
-  grep -nHiE '^[[:space:]]*(storePassword|keyPassword|password|apiKey|api_key|token)[[:space:]]*[:=][[:space:]]*[^$<{[:space:]][^[:space:]]*' "$candidate" 2>/dev/null \
-    | grep -viE '(placeholder|example|your-|<|>|\$\{|process\.env|System\.getenv)' || true
-done)"
+credential_names='(storePassword|keyPassword|password|passwd|apiKey|api_key|apiSecret|privateKey|private_key|clientSecret|token|secret)'
+# A value that is a reference, a lookup or a documented placeholder rather than
+# a secret: an environment variable, a command substitution, a template
+# placeholder, an example, a row of x's.
+credential_noise='(placeholder|example|your[-_]|dummy|redacted|fake|\$\{|\$\(|\$[A-Za-z_]|getenv|process\.env|System\.getenv|<[^>]*>|[x*]{6,})'
+candidates="$(git ls-files 2>/dev/null | grep -v '^tools/check_no_key_material\.sh$' || true)"
+
+quoted_hits="$(printf '%s\n' "$candidates" | grep -E '\.(properties|gradle|kts|ya?ml|json|dart|sh|toml|ini|cfg)$' | while read -r candidate; do
+  grep -nHiE "$credential_names[[:space:]]*[:=][[:space:]]*[\"'\`][^\"'\`]{3,}[\"'\`]" "$candidate" 2>/dev/null || true
+done | grep -viE "$credential_noise" || true)"
+
+bare_hits="$(printf '%s\n' "$candidates" | grep -E '\.(properties|ya?ml|json)$' | while read -r candidate; do
+  grep -nHiE "$credential_names[[:space:]]*[:=][[:space:]]*(changeit|[A-Za-z0-9_+/=-]{6,})" "$candidate" 2>/dev/null || true
+done | grep -viE "$credential_noise" || true)"
+
+literal_hits="$(printf '%s\n%s\n' "$quoted_hits" "$bare_hits" | grep -v '^[[:space:]]*$' || true)"
 
 if [ -n "$literal_hits" ]; then
-  bad "a password or key assigned as a literal (it belongs in a secret store):
-$(printf '%s' "$literal_hits" | sed 's/^/      /')"
+  bad "a credential written as a literal (it belongs in a secret store):
+$(printf '%s' "$literal_hits" | sort -u | sed 's/^/      /')"
 else
-  note "no password or key literals in properties, YAML, JSON or Gradle files"
+  note "no credential literals in code or configuration files"
 fi
 
 # ── Verdict ──────────────────────────────────────────────────────────────────
