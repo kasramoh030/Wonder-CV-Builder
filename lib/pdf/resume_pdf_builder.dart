@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
@@ -902,21 +903,31 @@ class ResumePdfBuilder {
 
   /// Page count read back from the produced file.
   ///
-  /// The `pdf` writer emits one `/Type /Page` object per page, so counting
-  /// them gives the true count of the artefact the user is about to send —
-  /// not an estimate. `/Pages` (the catalogue) is deliberately excluded.
+  /// The `pdf` writer emits one page object per page, so counting them gives
+  /// the true count of the artefact the user is about to send rather than an
+  /// estimate. Two details are the difference between that and a constant:
+  ///
+  ///  * the separator between a dictionary key and its value is only written
+  ///    when the value is a number, a boolean or a reference — a name is
+  ///    emitted flush against its key, so the file contains `/Type/Page`.
+  ///    Searching for `/Type /Page` found nothing in any document this app has
+  ///    ever produced, which is why every one of them reported a single page
+  ///    and no "longer than the local convention" warning could ever fire;
+  ///  * `/Pages` is the catalogue, not a page, so a match must not be allowed
+  ///    to stop at its prefix.
+  ///
+  /// The page tree's own `/Count` is the fallback: it is the number a reader
+  /// trusts. If neither is present, one page is the honest answer.
   static int _countPages(Uint8List bytes) {
-    final String text = String.fromCharCodes(bytes);
-    int count = 0;
-    int from = 0;
-    while (true) {
-      final int at = text.indexOf('/Type /Page', from);
-      if (at < 0) break;
-      final String next = text.substring(at, (at + 13).clamp(0, text.length));
-      if (!next.startsWith('/Type /Pages')) count++;
-      from = at + 12;
-    }
-    return count == 0 ? 1 : count;
+    final String text = latin1.decode(bytes, allowInvalid: true);
+    final int counted =
+        RegExp(r'/Type\s*/Page(?![sA-Za-z0-9])').allMatches(text).length;
+    if (counted > 0) return counted;
+
+    final RegExpMatch? declared = RegExp(r'/Count\s+(\d+)').firstMatch(text);
+    final int? parse =
+        declared == null ? null : int.tryParse(declared.group(1)!);
+    return parse == null || parse < 1 ? 1 : parse;
   }
 }
 
