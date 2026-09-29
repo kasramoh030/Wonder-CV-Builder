@@ -1,0 +1,283 @@
+name: Android debug
+
+# An installable APK for every push, so a build break in the Android layer is
+# caught in minutes rather than at release time. This workflow builds the
+# debug flavour with the debug key on purpose — it is a smoke build, not a
+# release. The signed, publishable artifact comes from android-release.yml.
+#
+# Analysis and tests are their own workflows (analyze.yml, test.yml) so a
+# failure names the stage that failed; this one records its toolchain and
+# Gradle output as a commit comment when a build fails, because the raw
+# Actions log needs repository sign-in to read.
+
+on:
+  push:
+    branches: ["arena/**", "main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.5"
+
+jobs:
+  debug:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build debug APK
+        id: apk
+        continue-on-error: true
+        run: |
+          set +e
+          rm -f /tmp/android_codes.env
+          flutter build apk --debug > /tmp/apk_debug.txt 2>&1
+          code=$?
+          echo "debug_code=$code" >> /tmp/android_codes.env
+          tail -c 40000 /tmp/apk_debug.txt
+          # The real code, not 0: with `continue-on-error` this keeps the job
+          # alive while still marking the step failed, which is what the
+          # diagnostics step below keys off. Ending with `exit 0` makes a
+          # failed build report success and produce no report at all.
+          exit $code
+
+      # Inspect what was actually built, on every push: identity, version,
+      # target SDK, permissions, exported components, native ABIs and any
+      # accidental key material. The debug key is expected here, so the script
+      # is told not to fail on it — the release workflow checks that part for
+      # real, with the release artifact.
+      - name: Inspect the APK
+        id: inspect
+        if: steps.apk.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set +e
+          APK=$(ls build/app/outputs/flutter-apk/*.apk | head -1)
+          bash tools/verify_release_artifact.sh --allow-debug-signature "$APK" > /tmp/inspect.txt 2>&1
+          echo "inspect_code=$?" >> /tmp/android_codes.env
+          cat /tmp/inspect.txt
+          exit 0   # a failing inspection is reported, not fatal to this step
+
+      # The release variant is the one that runs R8 and shrinks resources, so
+      # it is the one where a missing keep rule shows up as a build failure.
+      # Without signing secrets it is signed with the debug key and says so in
+      # the Gradle log; the artifact is still proof that the release build
+      # compiles, that the AAB is produced, and that the R8 mapping exists.
+      - name: Build the release AAB (signed with the debug key until secrets exist)
+        id: aab
+        continue-on-error: true
+        run: |
+          set +e
+          flutter build appbundle --release > /tmp/aab.txt 2>&1
+          code=$?
+          echo "aab_code=$code" >> /tmp/android_codes.env
+          tail -c 20000 /tmp/aab.txt
+          exit $code
+
+      - name: Build the release APK (signed with the debug key until secrets exist)
+        id: relapk
+        continue-on-error: true
+        run: |
+          set +e
+          flutter build apk --release > /tmp/relapk.txt 2>&1
+          code=$?
+          echo "relapk_code=$code" >> /tmp/android_codes.env
+          tail -c 20000 /tmp/relapk.txt
+          exit $code
+
+      - name: Name and keep the unsigned smoke artifacts
+        id: smoke
+        if: always() && steps.relapk.outcome == 'success'
+        run: |
+          set -e
+          mkdir -p dist-smoke
+          # Named so nobody can mistake one of these for a publishable build:
+          # they are signed with the debug key, and the release workflow is the
+          # only thing that produces artifacts with the upload key.
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             dist-smoke/wonder-cv-builder-release-UNSIGNED-smoke.apk
+          cp build/app/outputs/bundle/release/app-release.aab \
+             dist-smoke/wonder-cv-builder-release-UNSIGNED-smoke.aab
+          ls -lh dist-smoke
+
+      - name: Upload the smoke artifacts
+        if: always() && steps.smoke.outcome == 'success'
+        uses: actions/upload-artifact@v5
+        with:
+          name: smoke-unsigned-${{ github.sha }}
+          path: dist-smoke/*
+          retention-days: 14
+
+      - name: Inspect the release AAB
+        id: inspect_aab
+        if: always() && steps.aab.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set +e
+          AAB=$(ls build/app/outputs/bundle/release/*.aab | head -1)
+          bash tools/verify_release_artifact.sh --allow-debug-signature /dev/null "$AAB" > /tmp/inspect_aab.txt 2>&1
+          echo "inspect_aab_code=$?" >> /tmp/android_codes.env
+          cat /tmp/inspect_aab.txt
+          exit 0
+
+      - name: Publish the AAB inspection table
+        if: always() && github.event_name == 'push' && steps.inspect_aab.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          {
+            echo "## Release AAB inspection for ${GITHUB_SHA:0:7}"
+            echo
+            echo '```'
+            cat /tmp/inspect_aab.txt
+            echo '```'
+          } > /tmp/aab_report.md
+          payload=$(python3 -c 'import json; print(json.dumps({"body": open("/tmp/aab_report.md").read()}))')
+          curl -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+            -d "$payload" > /dev/null
+
+      - name: Publish the inspection table
+        if: always() && github.event_name == 'push' && steps.inspect.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          {
+            echo "## APK inspection for ${GITHUB_SHA:0:7}"
+            echo
+            echo '```'
+            cat /tmp/inspect.txt
+            echo '```'
+          } > /tmp/inspect_report.md
+          payload=$(python3 -c 'import json; print(json.dumps({"body": open("/tmp/inspect_report.md").read()}))')
+          curl -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+            -d "$payload" > /dev/null
+
+      - name: Publish Android diagnostics as a commit comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          debug_code=0
+          if [ -f /tmp/android_codes.env ]; then
+            # shellcheck disable=SC1091
+            . /tmp/android_codes.env
+          fi
+          if [ "${debug_code:-0}" = "0" ] && [ "${aab_code:-0}" = "0" ]; then
+            echo "The debug build and the release bundle both succeeded; nothing to publish."
+            exit 0
+          fi
+          {
+            echo "## Android debug build diagnostics for ${GITHUB_SHA:0:7}"
+            echo
+            echo "* flutter build apk --debug exit: ${debug_code}"
+            echo "* flutter build appbundle --release exit: ${aab_code:-not run}"
+            echo "* flutter build apk --release exit: ${relapk_code:-not run}"
+            echo
+            echo "<details><summary>toolchain</summary>"
+            echo
+            echo '```'
+            flutter --version || true
+            java -version 2>&1 || true
+            cat android/app/build.gradle.kts 2>/dev/null || true
+            echo '```'
+            echo "</details>"
+            echo
+            echo "<details open><summary>gradle output</summary>"
+            echo
+            echo '```'
+            tail -c 50000 /tmp/apk_debug.txt || true
+            echo '```'
+            echo "</details>"
+            if [ -f /tmp/aab.txt ]; then
+              echo
+              echo "<details open><summary>flutter build appbundle --release</summary>"
+              echo
+              echo '```'
+              tail -c 50000 /tmp/aab.txt || true
+              echo '```'
+              echo "</details>"
+            fi
+          } > /tmp/android_report.md
+          payload=$(python3 -c 'import json; print(json.dumps({"body": open("/tmp/android_report.md").read()}))')
+          curl -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+            -d "$payload" > /dev/null
+
+      - name: Upload debug APK
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: wonder-cv-builder-debug-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: warn
+
+      - name: Fail if the build or the inspection failed
+        if: always()
+        run: |
+          if [ ! -f /tmp/android_codes.env ]; then
+            echo "No result file was written; treating this as a failure."
+            exit 1
+          fi
+          # shellcheck disable=SC1091
+          . /tmp/android_codes.env
+          echo "debug build exit: ${debug_code:-unset}"
+          echo "apk inspection exit: ${inspect_code:-not run}"
+          echo "release AAB exit: ${aab_code:-not run}"
+          if [ "${debug_code:-1}" != "0" ]; then
+            exit 1
+          fi
+          # The release variant must build: it is the one that runs R8, and a
+          # keep-rule mistake that only appears there must not reach a tag.
+          if [ "${aab_code:-1}" != "0" ]; then
+            echo "::error::the release app bundle did not build"
+            exit 1
+          fi
+          # ... and so must the release APK, which is what Bazaar and Myket
+          # take. It is a different Gradle task with its own packaging step.
+          if [ "${relapk_code:-1}" != "0" ]; then
+            echo "::error::the release APK did not build"
+            exit 1
+          fi
+          # A smoke build that produces an APK with the wrong package, an
+          # unexpected permission or an exported component nobody meant to
+          # export is a failure even though Gradle succeeded.
+          if [ "${inspect_code:-1}" != "0" ]; then
+            exit 1
+          fi

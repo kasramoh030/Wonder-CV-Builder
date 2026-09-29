@@ -1,0 +1,107 @@
+name: Test
+
+on:
+  push:
+    branches: ["arena/**", "main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.5"
+
+jobs:
+  test:
+    name: Unit, widget and PDF tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Run tests
+        id: tests
+        continue-on-error: true
+        run: |
+          set +e
+          flutter test --coverage --reporter expanded > /tmp/test.txt 2>&1
+          code=$?
+          echo "test_code=$code" >> /tmp/codes.env
+          cat /tmp/test.txt
+          # Exit with the real code so that `steps.tests.outcome` is
+          # 'failure' and the diagnostics below run. `continue-on-error`
+          # keeps the job alive; ending with `exit 0` would make the outcome
+          # 'success' and silently skip the report — which is how a failing
+          # suite once produced a red build with no readable reason.
+          exit $code
+
+      - name: Publish diagnostics as a commit comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          test_code=0
+          if [ -f /tmp/codes.env ]; then
+            # shellcheck disable=SC1091
+            . /tmp/codes.env
+          fi
+          if [ "$test_code" = "0" ]; then
+            echo "Tests passed; no diagnostics to publish."
+            exit 0
+          fi
+          {
+            echo "## Test diagnostics for ${GITHUB_SHA:0:7}"
+            echo
+            echo "<details open><summary>flutter test</summary>"
+            echo
+            echo '```'
+            tail -c 40000 /tmp/test.txt || true
+            echo '```'
+            echo "</details>"
+          } > /tmp/report.md
+          payload=$(python3 -c 'import json; print(json.dumps({"body": open("/tmp/report.md").read()}))')
+          curl -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+            -d "$payload" > /dev/null
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage-${{ github.sha }}
+          path: coverage/lcov.info
+          if-no-files-found: warn
+
+      - name: Fail if tests failed
+        if: always()
+        run: |
+          code=0
+          if [ -f /tmp/codes.env ]; then
+            # shellcheck disable=SC1091
+            . /tmp/codes.env
+          fi
+          echo "test exit: ${test_code:-unset}"
+          if [ "${test_code:-1}" != "0" ]; then
+            exit 1
+          fi

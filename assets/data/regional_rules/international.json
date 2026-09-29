@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "id": "international",
+  "version": 1,
+  "labelKey": "regionInternational",
+  "summary": "The neutral default used when the target market is unknown, when applying to several markets at once, or when applying to a remote-first employer with no single hiring country. It favours conventions that are safe across borders.",
+  "paperSize": "a4",
+  "documentLanguage": "en",
+  "acceptedDocumentLanguages": [
+    "en"
+  ],
+  "dateSystem": "gregorian",
+  "dateSystemOptions": [
+    "gregorian"
+  ],
+  "dateFormat": "MM/YYYY",
+  "photo": {
+    "policy": "optional",
+    "conventional": false,
+    "shape": "circle",
+    "note": "Off by default. Photos are expected in some markets, discouraged in others, and either way they add little to a screening decision. Enable it only if you know the target market wants one."
+  },
+  "personalInfo": {
+    "showSensitiveByDefault": false,
+    "conventional": [],
+    "discouraged": [
+      "nationalId",
+      "birthDate",
+      "gender",
+      "maritalStatus"
+    ],
+    "note": "Keep only what a recruiter needs to contact you and to assess fit. Date of birth, marital status and identity numbers are off by default in every market profile."
+  },
+  "sections": {
+    "order": [
+      "personal",
+      "summary",
+      "experience",
+      "education",
+      "skills",
+      "projects",
+      "certifications",
+      "languages",
+      "awards",
+      "volunteering",
+      "additionalInfo"
+    ],
+    "required": [
+      "personal",
+      "experience",
+      "education"
+    ],
+    "recommended": [
+      "summary",
+      "skills",
+      "languages"
+    ],
+    "discouraged": []
+  },
+  "page": {
+    "min": 1,
+    "max": 3,
+    "idealMax": 2,
+    "note": "Two pages is a safe default almost everywhere. Keep the first page self-sufficient: many reviewers never turn it over."
+  },
+  "ats": {
+    "strictness": "medium",
+    "photoOnAts": false,
+    "notes": [
+      "When a document may be read by an unknown parser, prefer a single column, standard section headings and no graphics.",
+      "Dates in MM/YYYY avoid the DD/MM versus MM/DD ambiguity that breaks date parsing in cross-border applications."
+    ]
+  },
+  "language": {
+    "expectedTone": "professional",
+    "verbTensePreference": "mixed",
+    "notes": [
+      "Write the CV in the language of the advert or of the employer's working language.",
+      "Use one spelling convention consistently: mixing US and UK English in one document reads as carelessness."
+    ]
+  },
+  "advisories": [
+    {
+      "code": "regional.intl.tailoring",
+      "severity": "high",
+      "text": "For an international application, tailoring the summary and the skills list to the advert is often what moves the needle most; formatting usually matters less than the wording."
+    },
+    {
+      "code": "regional.intl.remote",
+      "severity": "info",
+      "text": "For remote-first employers, many candidates state their working time zone and right to work where relevant, which tends to save a screening round."
+    },
+    {
+      "code": "regional.intl.qualificationEquivalence",
+      "severity": "info",
+      "text": "Where a qualification is not widely recognised abroad, a one-line explanation of its level and duration is usually easier for a reader than assuming they will know the system."
+    }
+  ]
+}

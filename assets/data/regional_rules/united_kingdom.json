@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "id": "united_kingdom",
+  "version": 1,
+  "labelKey": "regionUnitedKingdom",
+  "summary": "UK conventions. A two-page CV is normal and expected; a personal profile at the top is standard practice.",
+  "paperSize": "a4",
+  "documentLanguage": "en",
+  "acceptedDocumentLanguages": [
+    "en"
+  ],
+  "dateSystem": "gregorian",
+  "dateSystemOptions": [
+    "gregorian"
+  ],
+  "dateFormat": "MM/YYYY",
+  "photo": {
+    "policy": "discouraged",
+    "conventional": false,
+    "shape": "circle",
+    "note": "Photos are not expected on UK CVs and are best omitted; UK employers avoid anything that could be read as a basis for discrimination."
+  },
+  "personalInfo": {
+    "showSensitiveByDefault": false,
+    "conventional": [],
+    "discouraged": [
+      "birthDate",
+      "gender",
+      "nationality",
+      "maritalStatus",
+      "nationalId"
+    ],
+    "note": "Date of birth, marital status, gender and nationality are not included on a UK CV. City is useful; a full street address is not."
+  },
+  "sections": {
+    "order": [
+      "personal",
+      "summary",
+      "experience",
+      "education",
+      "skills",
+      "certifications",
+      "projects",
+      "achievements",
+      "volunteering",
+      "additionalInfo",
+      "references"
+    ],
+    "required": [
+      "personal",
+      "experience",
+      "education"
+    ],
+    "recommended": [
+      "summary",
+      "skills",
+      "certifications"
+    ],
+    "discouraged": [
+      "interests"
+    ]
+  },
+  "page": {
+    "min": 1,
+    "max": 3,
+    "idealMax": 2,
+    "note": "Two pages is the standard expectation. A one-page CV reads as early-career; three is acceptable for senior or academic candidates."
+  },
+  "ats": {
+    "strictness": "medium",
+    "photoOnAts": false,
+    "notes": [
+      "Most large UK employers and recruiters use ATS software; keep headings conventional and the layout single-column for those applications.",
+      "UK spelling should be used when applying to UK employers (organisation, analyse, programme)."
+    ]
+  },
+  "language": {
+    "expectedTone": "professional",
+    "verbTensePreference": "mixed",
+    "notes": [
+      "A UK CV usually opens with a short personal profile (two to four lines) rather than a US-style headline.",
+      "Achievement-oriented bullets are expected, but a slightly more formal register than a US resume reads better."
+    ]
+  },
+  "advisories": [
+    {
+      "code": "regional.uk.profile",
+      "severity": "medium",
+      "text": "A short personal profile at the top is conventional in the UK and is a good place to state your specialism and years of experience."
+    },
+    {
+      "code": "regional.uk.references",
+      "severity": "info",
+      "text": "\"References available on request\" is still common in the UK and is included by many candidates."
+    },
+    {
+      "code": "regional.uk.spelling",
+      "severity": "medium",
+      "text": "UK spelling is common for UK employers; a mix of US and UK spelling can read as an untailored application, so it is usually worth keeping one style throughout."
+    },
+    {
+      "code": "regional.uk.grades",
+      "severity": "info",
+      "text": "Degree classification (First, 2:1) is often expected from recent graduates and can be omitted once you have several years of experience."
+    }
+  ]
+}

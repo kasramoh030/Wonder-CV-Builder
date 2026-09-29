@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What Android's own backup service (API 30 and below) may copy.
+
+    The app has no server, so a device backup is the only thing standing
+    between a user and losing every CV they wrote when a phone dies. Backup
+    goes to the user's own Google account, encrypted in transit, controlled by
+    them in Android settings — the developer never receives it.
+-->
+<full-backup-content>
+    <include domain="database" path="." />
+    <include domain="file" path="." />
+    <include domain="sharedpref" path="." />
+    <exclude domain="file" path="exports" />
+</full-backup-content>
