@@ -296,9 +296,88 @@ verify "$OUT_DIR/$ANDROID_NAME" "$android_root" \
   "$ANDROID_PREFIX/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml" \
   "$ANDROID_PREFIX/ANDROID-BUILD-NOTES.txt"
 
+# ── The rest of the handover ─────────────────────────────────────────────────
+#
+# The two documents a release is actually judged by, next to the archives they
+# come from, and an index with the checksums that let the owner prove the files
+# arrived intact. These are copies; the canonical files stay in docs/.
+
+copy_with_provenance() {
+  local source="$1" target="$2" title="$3"
+  [ -f "$source" ] || { warn "not in this commit, so not copied: $source"; return; }
+  {
+    printf '<!-- Copy of %s from commit %s (%s). Edit the repository file, not this one. -->\n\n' \
+      "$source" "$SHORT" "$TODAY"
+    cat "$source"
+  } >"$target"
+  ok "$title -> $(basename "$target")"
+}
+
+hash_of() { ( sha256sum "$1" 2>/dev/null || shasum -a 256 "$1" ) | cut -d' ' -f1; }
+
+bold "Assembling the rest of the handover"
+# The notes are named for the tag (v1.0.0.md); older conventions drop the v.
+NOTES="docs/release-notes/v$VERSION_NAME.md"
+[ -f "$NOTES" ] || NOTES="docs/release-notes/$VERSION_NAME.md"
+copy_with_provenance "$NOTES" "$OUT_DIR/RELEASE-NOTES-$VERSION_NAME.md" "release notes"
+copy_with_provenance "docs/STORE_CHECKLIST.md" "$OUT_DIR/STORE-CHECKLIST.md" "store checklist"
+copy_with_provenance "docs/PRIVACY.md" "$OUT_DIR/PRIVACY.md" "privacy documentation"
+copy_with_provenance "docs/RELEASE.md" "$OUT_DIR/RELEASE.md" "release documentation"
+
+OWNER_ZIP="$REPO_ROOT/release-owner-package/WONDER_CV_BUILDER_RELEASE_KEYSTORE.zip"
+{
+  cat <<EOF
+WONDER CV BUILDER — RELEASE HANDOVER
+=====================================================================
+Version:   $VERSION_NAME ($VERSION_CODE)
+Commit:    $SHORT ($COMMIT)
+Built on:  $TODAY
+
+FILES HERE
+---------------------------------------------------------------------
+EOF
+  for f in "$OUT_DIR/$FINAL_NAME" "$OUT_DIR/$ANDROID_NAME" \
+           "$OUT_DIR/RELEASE-NOTES-$VERSION_NAME.md" "$OUT_DIR/STORE-CHECKLIST.md" \
+           "$OUT_DIR/PRIVACY.md" "$OUT_DIR/RELEASE.md"; do
+    [ -f "$f" ] || continue
+    printf '  %-46s %10s bytes\n    sha256 %s\n' "$(basename "$f")" "$(wc -c <"$f" | tr -d ' ')" "$(hash_of "$f")"
+  done
+  if [ -f "$OWNER_ZIP" ]; then
+    printf '\n  %s\n    %10s bytes\n    sha256 %s\n' \
+      "release-owner-package/$(basename "$OWNER_ZIP")" \
+      "$(wc -c <"$OWNER_ZIP" | tr -d ' ')" "$(hash_of "$OWNER_ZIP")"
+  fi
+  cat <<EOF
+
+NOT IN THIS FOLDER, AND THAT IS THE POINT
+---------------------------------------------------------------------
+  * No keystore, no private key, no password, no API key and no .env. The
+    signing key travels separately, in the owner package, and is generated on
+    the owner's own machine. tools/check_no_key_material.sh fails this build if
+    key material is ever present, and it is the first step of both pipelines.
+
+  * No signed AAB or APK. Those are produced by the release workflow from the
+    signing secrets, which is also where their certificate is verified against
+    the pinned fingerprint:
+
+        git tag -a v$VERSION_NAME -m "Wonder CV Builder $VERSION_NAME"
+        git push origin v$VERSION_NAME
+
+    Without the secrets the workflow stops before it builds anything rather
+    than producing an artifact signed with the debug key.
+
+WHAT THIS BUILD IS
+---------------------------------------------------------------------
+  Wonder CV Builder $VERSION_NAME, a release candidate. Source, tests and
+  project configuration are complete; publishing waits on the owner-side steps
+  listed in STORE-CHECKLIST.md.
+EOF
+} >"$OUT_DIR/README.txt"
+ok "handover index -> README.txt"
+
 hr
 bold "Delivered to $OUT_DIR"
-for f in "$OUT_DIR/$FINAL_NAME" "$OUT_DIR/$ANDROID_NAME"; do
+for f in "$OUT_DIR/$FINAL_NAME" "$OUT_DIR/$ANDROID_NAME" "$OUT_DIR/README.txt"; do
   [ -f "$f" ] || die "expected file was not produced: $f"
   printf '  %s\n' "$f"
 done
