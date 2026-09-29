@@ -728,6 +728,18 @@ class StringsEn extends AppLocalizations {
   @override
   String get privacyExportSaved => 'Backup saved';
   @override
+  String get privacyRestoreData => 'Restore from a backup';
+  @override
+  String get privacyRestoreDataBody =>
+      'Reads a backup file you exported earlier. Your existing CVs are kept.';
+  @override
+  String get privacyRestoreConfirm => 'Restore';
+  @override
+  String get privacyRestoreDone => 'Restored from the backup';
+  @override
+  String get privacyRestoreInvalid =>
+      'That file is not a Wonder CV backup, or it is damaged. Nothing was changed.';
+  @override
   String get privacyDataDeleted => 'All data deleted';
 
   @override

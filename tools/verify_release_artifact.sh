@@ -198,6 +198,7 @@ else
   fail "signature" "apksigner verify failed"
 fi
 
+apk_sha256="$(printf '%s\n' "$signer" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1 | tr -d ':' | tr 'A-F' 'a-f')"
 cert_dn="$(printf '%s\n' "$signer" | sed -n 's/^Signer #1 certificate DN: \(.*\)$/\1/p' | head -1)"
 if [ -z "$cert_dn" ]; then
   # Older and newer apksigner builds differ in spacing and in which line
@@ -220,6 +221,26 @@ else
   pass "signing certificate" "$cert_dn"
 fi
 info "signature schemes" "${schemes:-<none reported>}"
+
+# ── The key this repository expects ──────────────────────────────────────────
+#
+# A certificate fingerprint is not a secret — a store publishes it — so it can
+# live in the repository as a variable. Pinning it turns "signed with some
+# release key" into "signed with our release key", which catches the one
+# mistake nothing else can: a valid, non-debug signature made with the wrong
+# key. Unset, the check says so rather than passing silently.
+if [ -n "${EXPECTED_CERT_SHA256:-}" ]; then
+  expected="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr -d ':' | tr 'A-F' 'a-f')"
+  if [ -z "$apk_sha256" ]; then
+    fail "pinned key" "EXPECTED_CERT_SHA256 is set but no SHA-256 digest was reported"
+  elif [ "$apk_sha256" = "$expected" ]; then
+    pass "pinned key" "certificate matches ANDROID_CERT_SHA256"
+  else
+    fail "pinned key" "signed with $apk_sha256, but this repository expects $expected"
+  fi
+else
+  info "pinned key" "ANDROID_CERT_SHA256 is not set; any non-debug key is accepted"
+fi
 
 # ── Native libraries ─────────────────────────────────────────────────────────
 abis="$(unzip -Z1 "$APK" 2>/dev/null | sed -n 's|^lib/\([^/]*\)/.*|\1|p' | sort -u | tr '\n' ' ')"
@@ -302,6 +323,22 @@ if [ -n "$AAB" ] && [ -f "$AAB" ]; then
     fail "bundle signature" "jarsigner -verify failed"
   fi
   info "bundle size" "$(du -h "$AAB" | cut -f1)"
+
+  if [ -n "${EXPECTED_CERT_SHA256:-}" ]; then
+    expected="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr -d ':' | tr 'A-F' 'a-f')"
+    bundle_sha256=""
+    if command -v keytool >/dev/null 2>&1; then
+      bundle_sha256="$(keytool -printcert -jarfile "$AAB" 2>/dev/null \
+        | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':' | tr 'A-F' 'a-f')"
+    fi
+    if [ -z "$bundle_sha256" ]; then
+      info "bundle pinned key" "keytool could not read the bundle's certificate"
+    elif [ "$bundle_sha256" = "$expected" ]; then
+      pass "bundle pinned key" "certificate matches ANDROID_CERT_SHA256"
+    else
+      fail "bundle pinned key" "signed with $bundle_sha256, but this repository expects $expected"
+    fi
+  fi
 fi
 
 echo "----------------------------------------------------------------------"

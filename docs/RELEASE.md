@@ -41,28 +41,90 @@ and `pubspec.yaml` disagree.
 
 ## Create the upload keystore
 
-**Once per project, and then never on a machine that is not yours.**
-
-`keytool` ships with the JDK. The command prompts for the passwords; the
-keystore file it writes is the app's identity for the rest of its life on the
-store — losing it means you can never update the app under the same package
-name.
+**Run this on your own machine, never in CI and never in a shared or agent
+sandbox.** The keystore is the app's permanent identity: it is what lets an
+update install over the version already on a user's phone. Whoever holds it
+can publish as this app, and losing it means the ability to update
+`dev.cvpro.builder` is gone forever.
 
 ```bash
-keytool -genkeypair -v \
-  -keystore upload-keystore.jks \
-  -alias upload \
-  -keyalg RSA -keysize 4096 -validity 10000 \
-  -storetype JKS
+./tools/create_release_keystore.sh            # create
+./tools/create_release_keystore.sh --check    # verify an existing one
 ```
 
-- Store `upload-keystore.jks` somewhere durable and private (a password
-  manager's file storage, an encrypted volume). **Never** commit it, and never
-  put it in the repository folder where a `git add -A` can find it.
-- Back it up twice, in two places. There is no recovery path.
-- If you already had a debug-signed build installed from an earlier attempt,
-  uninstall it before installing a release build: the signatures differ, so
-  Android will refuse to update in place.
+The script:
+
+- writes the keystore **outside any git repository** and refuses to run if the
+  target directory is inside one, because a keystore in a working tree is one
+  `git add -A` away from being published;
+- passes the passwords to `keytool` through `0600` files it shreds afterwards,
+  so they never appear in `ps`, `/proc` or your shell history;
+- never echoes a password, never writes one to a log, and prints only what is
+  safe to share: the path, the alias and the certificate's SHA-256;
+- prints the exact `gh secret set` commands, each reading from a file rather
+  than a `--body` argument, so the values never reach your terminal scrollback.
+
+You choose the keystore password, the key alias (`upload` by default) and the
+key password. Choose a strong keystore password and put it in your password
+manager **before** you start: there is no recovery, and no way to change it
+afterwards without re-signing everything.
+
+### Where the credentials live
+
+| Value | Where it belongs | Where it must never be |
+|---|---|---|
+| Keystore file (`.jks`) | Your machine, plus two backups elsewhere | Any git repository, any CI artifact, any chat |
+| Keystore password | Your password manager, and the `KEYSTORE_PASSWORD` secret | Repository, logs, shell history, screenshots |
+| Key alias | Recorded in this document's table below | — (it is not secret, but it must stay consistent) |
+| Key password | Your password manager, and the `KEY_PASSWORD` secret | As above |
+| Certificate SHA-256 | Here, in `ANDROID_CERT_SHA256`, and in your release notes | — (it is public information) |
+
+### Owner release credentials
+
+Fill this in once, keep it where you keep your other credentials, and keep the
+fingerprint in the repository:
+
+```
+Owner release credentials — Wonder CV Builder
+────────────────────────────────────────────
+Keystore file:      <your secure local path>
+Keystore password:  <in your password manager>
+Key alias:          upload
+Key password:       <in your password manager>
+Application ID:     dev.cvpro.builder
+Version:            see pubspec.yaml (currently 1.0.0+1)
+Cert SHA-256:       <printed by the script; also in ANDROID_CERT_SHA256>
+Created:            <date>
+Backup 1:           <where>
+Backup 2:           <where>
+```
+
+### Back up the keystore twice
+
+An upload key cannot be regenerated. If it is lost after the first release,
+the app can never be updated again under this package name — the listing, the
+reviews and the install base all become unreachable, and the only way forward
+is a new app.
+
+Two copies, two locations, neither of them the machine you build on:
+
+1. an encrypted archive in your password manager's file storage, or an
+   encrypted volume you already back up;
+2. a second copy in a physically different place — an encrypted USB key in a
+   drawer, or a different provider's encrypted storage.
+
+Verify a backup by restoring it somewhere else and running
+`./tools/create_release_keystore.sh --check` against the restored file: a
+backup nobody has read is a backup nobody knows is broken.
+
+### A note on sandboxes and agents
+
+Do not generate this key in a shared, ephemeral or automated environment, and
+do not paste it into a chat. A key created where someone else can read the
+disk is a key someone else may have. This repository's own tooling follows
+that rule: nothing in `tools/` creates key material on your behalf, CI only
+ever receives it as a secret, and `tools/check_no_key_material.sh` fails the
+build if key material appears in the tree.
 
 ### Point a local machine at it
 
@@ -87,7 +149,8 @@ export ANDROID_KEY_PASSWORD=…
 
 ### Point GitHub Actions at it
 
-Add four **repository secrets** (Settings → Secrets and variables → Actions):
+`./tools/create_release_keystore.sh` prints these commands ready to paste. Add
+four **repository secrets** (Settings → Secrets and variables → Actions):
 
 | Secret | Value |
 |---|---|
@@ -96,10 +159,36 @@ Add four **repository secrets** (Settings → Secrets and variables → Actions)
 | `ANDROID_KEY_ALIAS` | `upload` |
 | `ANDROID_KEY_PASSWORD` | the key password |
 
+The shorter names — `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`,
+`KEY_PASSWORD` — are accepted too, because they are what most guides use.
+Either naming works; whichever values are missing are named in the failure.
+
+**As of this commit those secrets are not configured**, so the tag-triggered
+release run stops at the first step and says which four values it needs. That
+is the only thing between this repository and a publishable build.
+
 ```bash
-base64 -w0 upload-keystore.jks   # Linux
-base64 -i upload-keystore.jks    # macOS, no line wrapping
+# Linux: base64 -w0; macOS: base64 -i (no line wrapping)
+gh secret set KEYSTORE_BASE64   < keystore.base64
+gh secret set KEYSTORE_PASSWORD < .store-password
+gh secret set KEY_ALIAS         --body upload
+gh secret set KEY_PASSWORD      < .key-password
 ```
+
+The workflow verifies the AAB and APK are **not** signed with the debug key.
+
+### Pin the certificate fingerprint
+
+The fingerprint is public — every store shows it — so it belongs in the
+repository as a *variable*, not a secret:
+
+```bash
+gh variable set ANDROID_CERT_SHA256 --body '<hex from the script, no colons>'
+```
+
+The release workflow then fails any artifact signed with a different key,
+which is the one failure a store will happily let through: a valid, non-debug
+signature made with the wrong key.
 
 The workflow writes the keystore into `$RUNNER_TEMP`, never into the
 workspace, so it cannot end up in an uploaded artifact or a stray `git add`.
@@ -162,6 +251,18 @@ All four publish their failure output (and, for the debug build, the
 inspection table) as a **commit comment**, because the raw Actions log
 requires repository sign-in to read.
 
+## Guarding the repository
+
+```bash
+tools/check_no_key_material.sh                  # check now
+tools/check_no_key_material.sh --install-hook   # check before every commit
+```
+
+It runs in CI on every push, before anything is built. It fails on key
+material by name (`*.jks`, `key.properties`, `.env`, …), by content (a PEM
+private key, an API-key shape, base64 that decodes to a JKS magic number), and
+on a password written as a literal in a properties, YAML, JSON or Gradle file.
+
 ## Verify an artifact before uploading it
 
 ```bash
@@ -185,6 +286,20 @@ It reports, and fails on anything that would block a release:
 | embedded secrets | catches a key that was compiled in by accident |
 | cleartext traffic | plain HTTP to an AI provider would leak the key |
 | native ABIs | confirms the universal APK really is universal |
+
+## Smoke artifacts (not publishable)
+
+Every push also builds the release variant — the same Gradle tasks a release
+uses, signed with the debug key — and uploads the result for 14 days as
+`smoke-unsigned-<sha>`, named
+`wonder-cv-builder-release-UNSIGNED-smoke.apk` / `.aab`.
+
+They exist to prove the release build compiles (R8 and resource shrinking run
+only there, so a missing keep rule is invisible in a debug build) and to give
+a build someone can install on a phone and test. They are **not** publishable:
+the debug key cannot be used for a store upload, and no update signed with the
+real key will install over one. Uninstall before installing a properly signed
+build.
 
 ## Which artifact for which store
 

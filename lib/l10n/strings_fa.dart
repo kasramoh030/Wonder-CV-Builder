@@ -732,6 +732,18 @@ class StringsFa extends AppLocalizations {
   @override
   String get privacyExportSaved => 'نسخه پشتیبان ذخیره شد';
   @override
+  String get privacyRestoreData => 'بازگرداندن از نسخه پشتیبان';
+  @override
+  String get privacyRestoreDataBody =>
+      'فایل پشتیبانی را می‌خواند که قبلاً خروجی گرفته‌اید. رزومه‌های فعلی شما باقی می‌ماند.';
+  @override
+  String get privacyRestoreConfirm => 'بازگرداندن';
+  @override
+  String get privacyRestoreDone => 'از نسخه پشتیبان بازگردانده شد';
+  @override
+  String get privacyRestoreInvalid =>
+      'این فایل، پشتیبان Wonder CV نیست یا آسیب دیده است. هیچ چیز تغییر نکرد.';
+  @override
   String get privacyDataDeleted => 'همه داده‌ها حذف شد';
 
   @override

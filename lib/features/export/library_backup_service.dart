@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -67,4 +68,53 @@ class LibraryBackupService {
   /// sentence, not a half-applied merge.
   static bool looksLikeBackup(Map<String, dynamic> payload) =>
       payload['format'] == formatId && payload['resumes'] is List;
+
+  /// Reads a chosen file into a payload, or `null` when it is not one.
+  ///
+  /// Every way a file can be wrong lands on the same `null`: not UTF-8, not
+  /// JSON, JSON that is not an object, an object that is not a backup, or a
+  /// backup truncated mid-write by a device that ran out of power. The caller
+  /// says one sentence about it and the user's library is untouched, which is
+  /// the only acceptable outcome for a restore that half-worked.
+  static Map<String, dynamic>? parse(Uint8List bytes) {
+    try {
+      final Object? decoded = jsonDecode(utf8.decode(bytes));
+      if (decoded is! Map<String, dynamic>) return null;
+      return looksLikeBackup(decoded) ? decoded : null;
+    } on Object {
+      return null;
+    }
+  }
+
+  /// How many documents the payload carries, for the confirmation the user
+  /// reads before anything is written. A count the user cannot verify is a
+  /// count they will not read; this one comes from the file itself.
+  static int documentCount(Map<String, dynamic> payload) {
+    final Object? resumes = payload['resumes'];
+    if (resumes is! List) return 0;
+    // Entries without an id and a title are skipped by the importer, so they
+    // must not be promised here either.
+    return resumes
+        .whereType<Map<Object?, Object?>>()
+        .where((Map<Object?, Object?> row) =>
+            row['id'] is String && row['title'] is String)
+        .length;
+  }
+
+  /// Asks the user for a backup file and returns its payload.
+  ///
+  /// `null` covers both "the user changed their mind" and "that was not a
+  /// backup", because the caller shows nothing for the first and a sentence
+  /// for the second — and distinguishing them here would be guessing.
+  Future<Map<String, dynamic>?> pickAndRead() async {
+    final PlatformFile? picked = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: <String>['json'],
+    );
+    final String? path = picked?.path;
+    if (picked == null || path == null) return null;
+    final File file = File(path);
+    if (!file.existsSync()) return null;
+    return parse(await file.readAsBytes());
+  }
 }

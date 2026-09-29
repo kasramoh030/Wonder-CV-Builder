@@ -92,7 +92,7 @@ implementation must satisfy. In summary:
 | Export a copy | Settings → Privacy → Export all data writes one JSON file to a location the user picks (`LibraryBackupService`, `ResumeRepository.exportLibrary`); the PDF export has its own share/save/print sheet | export shipped |
 | Delete a document | Archive (recoverable) or delete from the dashboard | shipped |
 | Delete everything | Settings → Privacy → Delete all data (`DataWipeService.wipe`) | shipped |
-| Restore from a backup | `ResumeRepository.importLibrary` exists and validates the format (`LibraryBackupService.looksLikeBackup`), but no screen calls it yet | **outstanding** |
+| Restore from a backup | Settings → Privacy → Restore from a backup: the file must parse as a backup this app wrote, the user confirms against the number of documents found in it, and the import keeps existing CVs and updates only the ids it finds | shipped |
 | Withdraw consent | Not applicable yet; no consent is currently granted to anything | not applicable |
 
 ## Store declarations — Google Play Data safety
@@ -158,6 +158,11 @@ is enough) and put the URL in the listings.
 > microphone, contacts, location or files.
 >
 > **Children.** The app is not directed at children under 13.
+>
+> **Restoring a backup.** Settings → Privacy → Restore from a backup reads a
+> file you exported earlier. It never deletes anything: documents in the file
+> are added, and a document with the same identifier is updated. A file that
+> is not a Wonder CV backup, or that is damaged, changes nothing and says so.
 >
 > **Deleting your data.** Settings → Privacy → Delete all data removes every
 > CV, its saved versions, its analyses, the saved job adverts, the generated

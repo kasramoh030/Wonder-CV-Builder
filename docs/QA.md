@@ -27,8 +27,9 @@ tools/verify_release_artifact.sh <apk> <aab>
 | `flutter analyze --fatal-warnings` | PASS | 0 errors, 0 warnings, 0 infos |
 | Unit + widget tests | PASS | 7 suites: regional rules, analyser, rule engine, builder forms, app boot, PDF rendering, backup files |
 | Debug APK | PASS | Per push; inspected automatically |
-| Release APK (signed) | BLOCKED | Needs the four signing secrets — `docs/RELEASE.md` |
-| Release AAB (signed) | BLOCKED | Same |
+| Release APK build | PASS | The release variant is built on every push; R8 runs there, which is where the missing-keep-rule failure appeared |
+| Release AAB build | PASS | Same build, bundle task |
+| Release APK (signed with the upload key) | BLOCKED | Four signing secrets are not configured on this repository — `docs/RELEASE.md`. Until then, the smoke artifacts are signed with the debug key and are named `…-UNSIGNED-smoke` so they cannot be mistaken for publishable |
 | Artifact inspection | PASS | Package, version, targetSdk 36, INTERNET only, one exported component, no embedded secrets, no cleartext traffic |
 | Manual device run | NOT RUN | No Android runtime in this environment; see `docs/STORE_CHECKLIST.md` |
 | Screenshots | BLOCKED | Must be captured on a real device or emulator |
@@ -43,7 +44,7 @@ tools/verify_release_artifact.sh <apk> <aab>
 | `test/features/builder_forms_test.dart` | Every section has an editor; every record field's reader and writer agree (including clearing a date); a created record lands in the document; bullet parsing keeps a mid-sentence dash; export file names are safe and fall back correctly |
 | `test/widget/app_smoke_test.dart` | A fresh install boots into onboarding, and the app renders without overflow at 320×640 |
 | `test/pdf/pdf_rendering_test.dart` | Real documents rendered through the real engine and read back through the importer's extractor: a one-page CV with searchable contact details, a twelve-role CV spilling to a second page without shrinking the type, Persian text recovered as Persian (presentation forms folded, reading order restored), German diacritics, US Letter for the United States and never for A4, every bullet printed, and the export file-naming rules |
-| `test/features/library_backup_test.dart` | The backup file name is dated and file-system safe; the payload is indented UTF-8 JSON that survives Persian and numbers; a foreign or truncated file is refused before anything is merged |
+| `test/features/library_backup_test.dart` | The backup file name is dated and file-system safe; the payload is indented UTF-8 JSON that survives Persian and numbers; a restore accepts only a backup this app wrote and refuses a foreign file, non-JSON, non-object JSON, non-UTF-8 bytes, an empty file and a file truncated mid-write — each of which leaves the library untouched |
 
 ## Not covered, and why
 

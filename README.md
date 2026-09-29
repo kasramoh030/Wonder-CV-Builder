@@ -29,10 +29,9 @@ identity on every store, so it keeps its original value on purpose.)
 | Offline analyser, job matching | ✅ |
 | Import (PDF / DOCX / TXT) | ✅ |
 | Android release configuration, signing, CI | ✅ |
-| Privacy actions (export all data, delete all data) | ✅ |
+| Privacy actions (export, restore, delete all data) | ✅ |
 | Tests (unit, widget, PDF, rules, backup) | ✅ |
 | AI assistant (bring-your-own-key) | ⏳ designed in [`docs/AI_BYOK.md`](docs/AI_BYOK.md), not implemented |
-| Restore from a JSON backup | ⏳ `importLibrary` exists; no screen calls it yet |
 | Image import (OCR) | ⏳ the app says it is unavailable rather than guessing |
 | Freemium, payments, ads | ⏳ not implemented; policy recorded in [`docs/FREEMIUM.md`](docs/FREEMIUM.md) |
 
@@ -53,7 +52,7 @@ Everything that makes the product useful works with the radio turned off:
 | All 12 templates | ❌ |
 | Live preview | ❌ |
 | PDF generation, save, open, share, print | ❌ |
-| Export all data as a JSON backup | ❌ |
+| Export all data as a JSON backup, and restore from one | ❌ |
 | CV analysis (structure, content, ATS, language) | ❌ |
 | Job description analysis and keyword matching | ❌ |
 | Import PDF / DOCX / TXT | ❌ |

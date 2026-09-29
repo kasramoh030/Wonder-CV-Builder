@@ -434,6 +434,11 @@ abstract class AppLocalizations {
   String get privacyExportData;
   String get privacyExportDataBody;
   String get privacyExportSaved;
+  String get privacyRestoreData;
+  String get privacyRestoreDataBody;
+  String get privacyRestoreConfirm;
+  String get privacyRestoreDone;
+  String get privacyRestoreInvalid;
   String get privacyDataDeleted;
   String get archiveConfirmTitle;
   String get archiveConfirmBody;

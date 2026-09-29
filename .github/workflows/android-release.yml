@@ -159,6 +159,12 @@ jobs:
           ls -lh dist
 
       - name: Verify the build (signing, package, permissions, manifest)
+        env:
+          # Set once with:  gh variable set ANDROID_CERT_SHA256 --body '<hex>'
+          # It is the certificate's SHA-256, which is public information; it is
+          # what makes "signed with the release key" checkable rather than
+          # merely "not the debug key".
+          EXPECTED_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
         run: bash tools/verify_release_artifact.sh dist/wonder-cv-builder-release.apk dist/wonder-cv-builder-release.aab
 
       - name: Upload artifacts

@@ -735,6 +735,18 @@ class StringsDe extends AppLocalizations {
   @override
   String get privacyExportSaved => 'Sicherung gespeichert';
   @override
+  String get privacyRestoreData => 'Aus einer Sicherung wiederherstellen';
+  @override
+  String get privacyRestoreDataBody =>
+      'Liest eine Sicherungsdatei, die Sie zuvor exportiert haben. Ihre vorhandenen Lebensläufe bleiben erhalten.';
+  @override
+  String get privacyRestoreConfirm => 'Wiederherstellen';
+  @override
+  String get privacyRestoreDone => 'Aus der Sicherung wiederhergestellt';
+  @override
+  String get privacyRestoreInvalid =>
+      'Diese Datei ist keine Wonder-CV-Sicherung oder sie ist beschädigt. Es wurde nichts geändert.';
+  @override
   String get privacyDataDeleted => 'Alle Daten gelöscht';
 
   @override

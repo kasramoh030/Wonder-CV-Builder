@@ -76,6 +76,83 @@ void main() {
     });
   });
 
+  group('reading a chosen file', () {
+    Uint8List bytesOf(String text) => Uint8List.fromList(utf8.encode(text));
+
+    test('accepts a backup this app wrote', () {
+      final Map<String, dynamic>? payload = LibraryBackupService.parse(
+        bytesOf(jsonEncode(<String, dynamic>{
+          'format': LibraryBackupService.formatId,
+          'version': LibraryBackupService.formatVersion,
+          'resumes': <dynamic>[
+            <String, dynamic>{'id': 'r1', 'title': 'رزومه من'},
+          ],
+        })),
+      );
+      expect(payload, isNotNull);
+      expect(LibraryBackupService.documentCount(payload!), 1);
+    });
+
+    test('counts only the documents the importer would actually write', () {
+      // Entries without an id and a title are skipped by importLibrary, so the
+      // confirmation must not promise them either.
+      final Map<String, dynamic> payload = <String, dynamic>{
+        'format': LibraryBackupService.formatId,
+        'resumes': <dynamic>[
+          <String, dynamic>{'id': 'r1', 'title': 'One'},
+          <String, dynamic>{'id': 'r2'},
+          <String, dynamic>{'title': 'Three'},
+          'not even an object',
+          <String, dynamic>{'id': 'r4', 'title': 'Four'},
+        ],
+      };
+      expect(LibraryBackupService.documentCount(payload), 2);
+    });
+
+    test('refuses a file that is not JSON at all', () {
+      expect(LibraryBackupService.parse(bytesOf('this is a photo, not a backup')),
+          isNull);
+    });
+
+    test('refuses JSON that is not an object', () {
+      expect(LibraryBackupService.parse(bytesOf('[1, 2, 3]')), isNull);
+      expect(LibraryBackupService.parse(bytesOf('"a string"')), isNull);
+    });
+
+    test('refuses another app’s JSON, however valid', () {
+      expect(
+        LibraryBackupService.parse(bytesOf(jsonEncode(<String, dynamic>{
+          'format': 'some.other.tool.backup',
+          'resumes': <dynamic>[],
+        }))),
+        isNull,
+      );
+    });
+
+    test('refuses a backup truncated mid-write', () {
+      final String whole = jsonEncode(<String, dynamic>{
+        'format': LibraryBackupService.formatId,
+        'resumes': <dynamic>[<String, dynamic>{'id': 'r1', 'title': 'One'}],
+      });
+      expect(
+        LibraryBackupService.parse(bytesOf(whole.substring(0, whole.length ~/ 2))),
+        isNull,
+        reason: 'a device that ran out of power leaves half a file behind',
+      );
+    });
+
+    test('refuses bytes that are not UTF-8', () {
+      expect(
+        LibraryBackupService.parse(Uint8List.fromList(<int>[0xff, 0xfe, 0x00, 0x01])),
+        isNull,
+      );
+    });
+
+    test('an empty file is not a backup', () {
+      expect(LibraryBackupService.parse(Uint8List(0)), isNull);
+    });
+  });
+
   group('recognising a backup', () {
     test('accepts the app’s own format', () {
       expect(

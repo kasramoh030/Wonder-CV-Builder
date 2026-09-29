@@ -97,6 +97,40 @@ jobs:
           tail -c 20000 /tmp/aab.txt
           exit $code
 
+      - name: Build the release APK (signed with the debug key until secrets exist)
+        id: relapk
+        continue-on-error: true
+        run: |
+          set +e
+          flutter build apk --release > /tmp/relapk.txt 2>&1
+          code=$?
+          echo "relapk_code=$code" >> /tmp/android_codes.env
+          tail -c 20000 /tmp/relapk.txt
+          exit $code
+
+      - name: Name and keep the unsigned smoke artifacts
+        id: smoke
+        if: always() && steps.relapk.outcome == 'success'
+        run: |
+          set -e
+          mkdir -p dist-smoke
+          # Named so nobody can mistake one of these for a publishable build:
+          # they are signed with the debug key, and the release workflow is the
+          # only thing that produces artifacts with the upload key.
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             dist-smoke/wonder-cv-builder-release-UNSIGNED-smoke.apk
+          cp build/app/outputs/bundle/release/app-release.aab \
+             dist-smoke/wonder-cv-builder-release-UNSIGNED-smoke.aab
+          ls -lh dist-smoke
+
+      - name: Upload the smoke artifacts
+        if: always() && steps.smoke.outcome == 'success'
+        uses: actions/upload-artifact@v5
+        with:
+          name: smoke-unsigned-${{ github.sha }}
+          path: dist-smoke/*
+          retention-days: 14
+
       - name: Inspect the release AAB
         id: inspect_aab
         if: always() && steps.aab.outcome == 'success'
@@ -171,6 +205,7 @@ jobs:
             echo
             echo "* flutter build apk --debug exit: ${debug_code}"
             echo "* flutter build appbundle --release exit: ${aab_code:-not run}"
+            echo "* flutter build apk --release exit: ${relapk_code:-not run}"
             echo
             echo "<details><summary>toolchain</summary>"
             echo
@@ -232,6 +267,12 @@ jobs:
           # keep-rule mistake that only appears there must not reach a tag.
           if [ "${aab_code:-1}" != "0" ]; then
             echo "::error::the release app bundle did not build"
+            exit 1
+          fi
+          # ... and so must the release APK, which is what Bazaar and Myket
+          # take. It is a different Gradle task with its own packaging step.
+          if [ "${relapk_code:-1}" != "0" ]; then
+            echo "::error::the release APK did not build"
             exit 1
           fi
           # A smoke build that produces an APK with the wrong package, an

@@ -30,6 +30,14 @@ jobs:
           channel: stable
           cache: true
 
+      # Signing material must never reach a commit, and this check is the cheap
+      # half of that promise: it needs no SDK, it is offline, and it runs
+      # before anything is built. It scans by file name, by content (PEM
+      # headers, API-key shapes, base64 that decodes to a JKS), and for
+      # passwords written as literals.
+      - name: Check for key material
+        run: bash tools/check_no_key_material.sh
+
       - name: Resolve dependencies
         run: flutter pub get
 

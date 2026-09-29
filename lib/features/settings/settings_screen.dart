@@ -189,6 +189,12 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () => _exportEverything(context, ref, l10n),
               ),
               SettingsTile(
+                icon: Icons.settings_backup_restore_rounded,
+                title: l10n.privacyRestoreData,
+                subtitle: l10n.privacyRestoreDataBody,
+                onTap: () => _restoreFromBackup(context, ref, l10n),
+              ),
+              SettingsTile(
                 icon: Icons.delete_forever_outlined,
                 title: l10n.privacyDeleteAllTitle,
                 subtitle: l10n.privacyDeleteAllBody,
@@ -249,6 +255,75 @@ class SettingsScreen extends ConsumerWidget {
       }
     } on Object {
       messenger.showSnackBar(SnackBar(content: Text(l10n.exportFailed)));
+    }
+  }
+
+  /// Reads a backup file the user chooses and writes what it contains.
+  ///
+  /// Three separate guards, because a restore is the one action that can ruin
+  /// a library:
+  ///
+  ///  1. the file must parse as a backup this app wrote — a foreign or damaged
+  ///     file changes nothing and says so;
+  ///  2. the user confirms, and the confirmation names the number of documents
+  ///     found in the file rather than a vague "your data";
+  ///  3. the import itself is the repository's, which keeps existing documents
+  ///     and updates any whose id already exists, so restoring an older backup
+  ///     cannot silently delete newer work.
+  Future<void> _restoreFromBackup(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    try {
+      final Map<String, dynamic>? payload =
+          await const LibraryBackupService().pickAndRead();
+      if (payload == null) {
+        // Either the picker was dismissed or the file was not a backup; both
+        // leave the library untouched, and the second deserves a sentence.
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.privacyRestoreInvalid)),
+        );
+        return;
+      }
+
+      final int count = LibraryBackupService.documentCount(payload);
+      if (count == 0) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.privacyRestoreInvalid)),
+        );
+        return;
+      }
+
+      if (!context.mounted) return;
+      final bool? confirmed = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext dialogContext) => AlertDialog(
+          title: Text(l10n.privacyRestoreData),
+          content: Text(l10n.privacyRestoreDataBody),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(l10n.privacyRestoreConfirm),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      await ref.read(resumeRepositoryProvider).importLibrary(payload);
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.privacyRestoreDone)),
+      );
+    } on Object {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.privacyRestoreInvalid)),
+      );
     }
   }
 
