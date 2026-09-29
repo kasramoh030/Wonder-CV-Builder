@@ -189,46 +189,195 @@ class DocxTextExtractor {
 /// The import screen always asks the user to review the result, so an
 /// imperfect extraction costs a correction, not a wrong CV.
 class PdfTextExtractor {
-  /// Glyph id → character, merged from every `ToUnicode` CMap in the file.
+  /// File-wide fallback: every `ToUnicode` entry found anywhere in the file.
+  ///
+  /// Used when a stream cannot be attributed to a font — an object stream, or
+  /// a file whose resources are assembled in a way this parser does not
+  /// follow. It is a fallback rather than the primary path because merging
+  /// every font's map is wrong as soon as two subset fonts both use code 1:
+  /// the last font read wins, and half the page comes out as garbage.
   final Map<int, String> _toUnicode = <int, String>{};
+
+  /// Character maps keyed by the object number of the `ToUnicode` stream.
+  final Map<int, Map<int, String>> _cmapObjects = <int, Map<int, String>>{};
+
+  /// Font object number → the character map it declares.
+  final Map<int, Map<int, String>> _fontCmaps = <int, Map<int, String>>{};
+
+  /// The object index for the file currently being read.
+  _PdfObjects _objects = _PdfObjects.empty();
+
+  /// The map of the font selected by the most recent `Tf` operator.
+  Map<int, String>? _activeCmap;
 
   String extract(Uint8List bytes) {
     // PDF syntax is byte-oriented; Latin-1 keeps a one-to-one mapping between
-    // byte offsets and string indices so offsets found here stay valid.
+    // byte offsets and string indices, so offsets found here stay valid.
     final String source = latin1.decode(bytes, allowInvalid: true);
+    final _PdfObjects objects = _PdfObjects.of(source);
+    _objects = objects;
 
-    _readToUnicodeMaps(source);
+    _readCharacterMaps(objects, bytes);
+    _readFontResources(objects);
+
+    final Map<int, Map<String, int>> contentFonts =
+        _contentStreamFonts(objects);
 
     final StringBuffer out = StringBuffer();
-    int cursor = 0;
-    while (true) {
-      final int start = source.indexOf('stream', cursor);
-      if (start < 0) break;
-      final int end = source.indexOf('endstream', start);
-      if (end < 0) break;
-      cursor = end + 9;
+    for (final _PdfObject object in objects.all) {
+      final String? content = _streamTextOf(object, bytes);
+      if (content == null || content.trim().isEmpty) continue;
 
-      final int dictionaryStart = source.lastIndexOf('<<', start);
-      final String dictionary = dictionaryStart < 0
-          ? ''
-          : source.substring(dictionaryStart, start);
-
-      int offset = start + 6;
-      if (offset < source.length && source.codeUnitAt(offset) == 13) offset++;
-      if (offset < source.length && source.codeUnitAt(offset) == 10) offset++;
-
-      final Uint8List raw = Uint8List.sublistView(bytes, offset, end);
-      final List<int> data = dictionary.contains('/FlateDecode')
-          ? _inflate(raw)
-          : raw;
-      if (data.isEmpty) continue;
-
-      final String content = latin1.decode(data, allowInvalid: true);
-      final String text = _operators(content);
+      final String text = _operators(
+        content,
+        contentFonts[object.number] ?? const <String, int>{},
+      );
       if (text.trim().isNotEmpty) out.write(text);
     }
 
     return _tidy(out.toString());
+  }
+
+  // ── Object index ─────────────────────────────────────────────────────────
+
+  /// Reads every `ToUnicode` CMap in the file.
+  ///
+  /// The stream is inflated first: a CMap written by a modern producer is a
+  /// compressed stream, so searching the raw bytes of the file for
+  /// `beginbfchar` finds nothing at all — which is exactly the bug that made
+  /// imported PDFs come back as a page of garbage.
+  void _readCharacterMaps(_PdfObjects objects, Uint8List bytes) {
+    for (final _PdfObject object in objects.all) {
+      final String? stream = _streamTextOf(object, bytes);
+      final String candidate = stream ?? object.body;
+      if (!candidate.contains('beginbfchar') &&
+          !candidate.contains('beginbfrange')) {
+        continue;
+      }
+      final Map<int, String> map = _parseCmap(candidate);
+      if (map.isEmpty) continue;
+      _cmapObjects[object.number] = map;
+      // The merged map is a fallback, so an earlier entry is kept: with two
+      // subsets in play, whichever font the file happens to list first is no
+      // worse a guess than whichever it lists last.
+      for (final MapEntry<int, String> entry in map.entries) {
+        _toUnicode.putIfAbsent(entry.key, () => entry.value);
+      }
+    }
+  }
+
+  /// Resolves each font object to the character map it points at.
+  void _readFontResources(_PdfObjects objects) {
+    for (final _PdfObject object in objects.all) {
+      final int? mapObject = _referenceAfter(object.body, '/ToUnicode');
+      if (mapObject == null) continue;
+      final Map<int, String>? map = _cmapObjects[mapObject];
+      if (map != null) _fontCmaps[object.number] = map;
+    }
+  }
+
+  /// Maps each content stream to the fonts its page's resources expose.
+  ///
+  /// A page object names a resource dictionary, which names fonts by a short
+  /// token (`/F1`) that the content stream's `Tf` operator selects. Following
+  /// that chain is what makes multi-font extraction correct; when it cannot be
+  /// followed, the caller falls back to the merged map.
+  Map<int, Map<String, int>> _contentStreamFonts(_PdfObjects objects) {
+    final Map<int, Map<String, int>> result = <int, Map<String, int>>{};
+    for (final _PdfObject page in objects.all) {
+      if (!page.body.contains('/Contents')) continue;
+      final List<int> contents = _contentReferences(page.body);
+      if (contents.isEmpty) continue;
+      final Map<String, int> fonts = _fontResourcesOf(page.body);
+      for (final int number in contents) {
+        result[number] = fonts;
+      }
+    }
+    return result;
+  }
+
+  static List<int> _contentReferences(String body) {
+    final List<int> numbers = <int>[];
+    final RegExpMatch? single =
+        RegExp(r'/Contents\s+(\d+)\s+\d+\s+R').firstMatch(body);
+    if (single != null) numbers.add(int.parse(single.group(1)!));
+    final RegExpMatch? array =
+        RegExp(r'/Contents\s*\[([^\]]*)\]', dotAll: true).firstMatch(body);
+    if (array != null) {
+      for (final RegExpMatch reference
+          in RegExp(r'(\d+)\s+\d+\s+R').allMatches(array.group(1)!)) {
+        numbers.add(int.parse(reference.group(1)!));
+      }
+    }
+    return numbers;
+  }
+
+  Map<String, int> _fontResourcesOf(String pageBody) {
+    String scope = pageBody;
+    final int? resources = _referenceAfter(pageBody, '/Resources');
+    if (resources != null) {
+      scope = _objects.byNumber(resources)?.body ?? pageBody;
+    }
+
+    final RegExpMatch? font =
+        RegExp(r'/Font\s*(\d+\s+\d+\s+R|<<)').firstMatch(scope);
+    if (font == null) return const <String, int>{};
+
+    String dictionary;
+    if (font.group(1) == '<<') {
+      final int close = scope.indexOf('>>', font.end);
+      dictionary = scope.substring(font.end, close < 0 ? scope.length : close);
+    } else {
+      final int? object =
+          int.tryParse(RegExp(r'\d+').firstMatch(font.group(1)!)!.group(0)!);
+      dictionary = object == null ? '' : (_objects.byNumber(object)?.body ?? '');
+    }
+
+    final Map<String, int> fonts = <String, int>{};
+    for (final RegExpMatch entry
+        in RegExp(r'/([A-Za-z0-9_.+-]+)\s+(\d+)\s+\d+\s+R')
+            .allMatches(dictionary)) {
+      fonts[entry.group(1)!] = int.parse(entry.group(2)!);
+    }
+    return fonts;
+  }
+
+  static int? _referenceAfter(String body, String token) {
+    final RegExpMatch? match =
+        RegExp('${RegExp.escape(token)}\\s+(\\d+)\\s+\\d+\\s+R').firstMatch(body);
+    return match == null ? null : int.tryParse(match.group(1)!);
+  }
+
+  // ── Streams ──────────────────────────────────────────────────────────────
+
+  /// The decoded text of an object's stream, or `null` when it has none or
+  /// when the stream cannot hold text (an image, a font program).
+  String? _streamTextOf(_PdfObject object, Uint8List bytes) {
+    final int start = object.body.indexOf('stream');
+    if (start < 0) return null;
+    final int end = object.body.indexOf('endstream', start);
+    if (end < 0) return null;
+
+    final String dictionary = object.body.substring(0, start);
+    if (dictionary.contains('/Image') ||
+        dictionary.contains('DCTDecode') ||
+        dictionary.contains('JPXDecode') ||
+        dictionary.contains('CCITTFaxDecode') ||
+        dictionary.contains('FontFile')) {
+      return null;
+    }
+
+    int from = object.byteStart + start + 6;
+    if (from < bytes.length && bytes[from] == 13) from++;
+    if (from < bytes.length && bytes[from] == 10) from++;
+    final int to = object.byteStart + end;
+    if (to <= from || to > bytes.length) return null;
+
+    final Uint8List raw = Uint8List.sublistView(bytes, from, to);
+    final List<int> data =
+        dictionary.contains('FlateDecode') ? _inflate(raw) : raw;
+    if (data.isEmpty) return null;
+    return latin1.decode(data, allowInvalid: true);
   }
 
   /// Inflates a stream, or returns nothing when it is not deflate data.
@@ -245,18 +394,20 @@ class PdfTextExtractor {
 
   // ── ToUnicode CMaps ──────────────────────────────────────────────────────
 
-  void _readToUnicodeMaps(String source) {
+  Map<int, String> _parseCmap(String text) {
+    final Map<int, String> map = <int, String>{};
     final RegExp cmap = RegExp(r'beginbfchar(.*?)endbfchar', dotAll: true);
     final RegExp range = RegExp(r'beginbfrange(.*?)endbfrange', dotAll: true);
 
-    for (final RegExpMatch match in cmap.allMatches(source)) {
-      for (final RegExpMatch pair in RegExp(r'<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>')
-          .allMatches(match.group(1)!)) {
+    for (final RegExpMatch match in cmap.allMatches(text)) {
+      for (final RegExpMatch pair
+          in RegExp(r'<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>')
+              .allMatches(match.group(1)!)) {
         final int code = int.parse(pair.group(1)!, radix: 16);
-        _toUnicode[code] = _fromUtf16Hex(pair.group(2)!);
+        map[code] = _fromUtf16Hex(pair.group(2)!);
       }
     }
-    for (final RegExpMatch match in range.allMatches(source)) {
+    for (final RegExpMatch match in range.allMatches(text)) {
       for (final RegExpMatch entry in RegExp(
         r'<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>',
       ).allMatches(match.group(1)!)) {
@@ -264,10 +415,11 @@ class PdfTextExtractor {
         final int high = int.parse(entry.group(2)!, radix: 16);
         final int target = int.parse(entry.group(3)!, radix: 16);
         for (int code = low; code <= high && code - low < 512; code++) {
-          _toUnicode[code] = String.fromCharCode(target + (code - low));
+          map[code] = String.fromCharCode(target + (code - low));
         }
       }
     }
+    return map;
   }
 
   static String _fromUtf16Hex(String hex) {
@@ -281,9 +433,11 @@ class PdfTextExtractor {
 
   // ── Content stream text operators ────────────────────────────────────────
 
-  String _operators(String content) {
+  String _operators(String content, Map<String, int> fonts) {
     final StringBuffer out = StringBuffer();
     final List<String> pending = <String>[];
+    String pendingName = '';
+    _activeCmap = null;
     int i = 0;
 
     while (i < content.length) {
@@ -294,6 +448,18 @@ class PdfTextExtractor {
         final (String value, int next) = _literalString(content, i);
         pending.add(value);
         i = next;
+        continue;
+      }
+      // A name token, which is the operand a `Tf` uses to choose a font.
+      if (ch == '/') {
+        int j = i + 1;
+        while (j < content.length &&
+            !_isDelimiter(content.codeUnitAt(j)) &&
+            content[j] != '/') {
+          j++;
+        }
+        pendingName = content.substring(i + 1, j);
+        i = j;
         continue;
       }
       if (ch == '<' && i + 1 < content.length && content[i + 1] != '<') {
@@ -329,6 +495,8 @@ class PdfTextExtractor {
             out.write('\n');
           case 'Tf':
             pending.clear();
+            final int? font = fonts[pendingName];
+            _activeCmap = font == null ? null : _fontCmaps[font];
         }
         i = j;
         continue;
@@ -437,8 +605,68 @@ class PdfTextExtractor {
   String _decodeBytes(List<int> bytes) {
     if (bytes.isEmpty) return '';
 
-    // Two-byte codes with a zero high byte in every pair: what an embedded
-    // font's identity encoding looks like on the wire.
+    final Map<int, String>? cmap = _activeCmap;
+    if (cmap != null && cmap.isNotEmpty) {
+      return _decodeWithCmap(bytes, cmap);
+    }
+
+    // No font map: fall back to the merged one, and to the shapes an
+    // unmapped string can take.
+    final String merged = _decodeWithMerge(bytes);
+    if (merged.isNotEmpty) return merged;
+    return _decodeWithCmap(bytes, _toUnicode);
+  }
+
+  /// Decodes with one font's map, choosing the code width by coverage.
+  ///
+  /// The old heuristic — "two-byte if every high byte is zero" — fails on a
+  /// subset with more than 255 glyphs, where the codes legitimately exceed
+  /// one byte, and mis-decodes a small subset whose codes all happen to be
+  /// low. Trying both and keeping the reading that the map actually covers is
+  /// both simpler and correct in more cases.
+  String _decodeWithCmap(List<int> bytes, Map<int, String> cmap) {
+    if (cmap.isEmpty) return '';
+
+    final bool twoBytePossible = bytes.length.isEven && bytes.length >= 2;
+    int singleHits = 0;
+    for (final int byte in bytes) {
+      if (cmap.containsKey(byte)) singleHits++;
+    }
+    int doubleHits = 0;
+    if (twoBytePossible) {
+      for (int i = 0; i + 1 < bytes.length; i += 2) {
+        if (cmap.containsKey((bytes[i] << 8) | bytes[i + 1])) doubleHits++;
+      }
+    }
+
+    final int pairs = bytes.length ~/ 2;
+    final bool twoByte = twoBytePossible &&
+        doubleHits > 0 &&
+        (singleHits == 0 || doubleHits * bytes.length >= singleHits * pairs);
+
+    final StringBuffer out = StringBuffer();
+    if (twoByte) {
+      for (int i = 0; i + 1 < bytes.length; i += 2) {
+        final int code = (bytes[i] << 8) | bytes[i + 1];
+        out.write(cmap[code] ?? _fallbackChar(code));
+      }
+      return out.toString();
+    }
+
+    for (final int byte in bytes) {
+      out.write(cmap[byte] ?? _winAnsi(byte));
+    }
+    return out.toString();
+  }
+
+  /// Decoding without a font context, for streams whose resources could not
+  /// be resolved: the merged map first, then WinAnsi.
+  String _decodeWithMerge(List<int> bytes) {
+    final StringBuffer out = StringBuffer();
+    bool anyMapped = false;
+
+    // Two-byte identity encoding with a zero high byte in every pair, which
+    // is what an unmapped embedded font's strings look like on the wire.
     bool twoByte = bytes.length.isEven && bytes.length >= 2;
     if (twoByte) {
       for (int i = 0; i + 1 < bytes.length; i += 2) {
@@ -450,23 +678,25 @@ class PdfTextExtractor {
     }
 
     if (twoByte) {
-      final StringBuffer out = StringBuffer();
       for (int i = 0; i + 1 < bytes.length; i += 2) {
         final int code = (bytes[i] << 8) | bytes[i + 1];
-        out.write(_toUnicode[code] ?? _fallbackChar(code));
+        final String? mapped = _toUnicode[code];
+        if (mapped != null) anyMapped = true;
+        out.write(mapped ?? _fallbackChar(code));
       }
-      return out.toString();
+      return anyMapped ? out.toString() : '';
     }
 
-    final StringBuffer out = StringBuffer();
     for (final int byte in bytes) {
-      if (_toUnicode.containsKey(byte)) {
-        out.write(_toUnicode[byte]);
+      final String? mapped = _toUnicode[byte];
+      if (mapped != null) {
+        anyMapped = true;
+        out.write(mapped);
       } else {
         out.write(_winAnsi(byte));
       }
     }
-    return out.toString();
+    return anyMapped ? out.toString() : '';
   }
 
   static String _fallbackChar(int code) =>
@@ -510,5 +740,60 @@ class PdfTextExtractor {
         .map((String line) => line.trim())
         .join('\n')
         .trim();
+  }
+}
+
+/// One `N 0 obj … endobj` section of a file, indexed by byte offset.
+///
+/// Text extraction needs this: content streams reference fonts by object
+/// number, and following that reference is what separates correct extraction
+/// from a merged guess.
+class _PdfObject {
+  const _PdfObject({
+    required this.number,
+    required this.body,
+    required this.byteStart,
+  });
+
+  final int number;
+
+  /// Everything between `obj` and `endobj`.
+  final String body;
+
+  /// The byte offset of [body] in the file, so stream data — which has to be
+  /// inflated from the original bytes — can be located.
+  final int byteStart;
+}
+
+class _PdfObjects {
+  const _PdfObjects(this.all);
+
+  const _PdfObjects.empty() : all = const <_PdfObject>[];
+
+  final List<_PdfObject> all;
+
+  factory _PdfObjects.of(String source) {
+    final List<_PdfObject> objects = <_PdfObject>[];
+    for (final RegExpMatch match
+        in RegExp(r'(?:^|[\s>\]])(\d+)\s+\d+\s+obj\b').allMatches(source)) {
+      final int start = match.end;
+      final int end = source.indexOf('endobj', start);
+      if (end < 0) continue;
+      objects.add(
+        _PdfObject(
+          number: int.parse(match.group(1)!),
+          body: source.substring(start, end),
+          byteStart: start,
+        ),
+      );
+    }
+    return _PdfObjects(objects);
+  }
+
+  _PdfObject? byNumber(int number) {
+    for (final _PdfObject object in all) {
+      if (object.number == number) return object;
+    }
+    return null;
   }
 }

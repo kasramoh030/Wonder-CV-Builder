@@ -121,16 +121,45 @@ info "permission count" "$permission_count"
 
 # ── Exported components ──────────────────────────────────────────────────────
 manifest_tree="$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null)"
-# Walk the manifest dump and print the name of every component that is
-# exported, so a surprise is named rather than counted.
-exported_names="$(printf '%s\n' "$manifest_tree" | awk '
-  /^ *E: (activity|activity-alias|service|receiver|provider)/ { name=""; type=$2 }
-  /^ *A: android:name\(/ { if (name == "") { name=$0; sub(/.*="/, "", name); sub(/".*/, "", name) } }
-  /android:exported\(0x[0-9a-f]*\)=true/ { if (name != "") print type " " name }
+# Walk the manifest dump and print the name of every exported component, so a
+# surprise is named rather than counted. aapt2 renders a boolean true either as
+# `=true` or as `(type 0x12)0xffffffff` depending on the build-tools version, so
+# both are accepted; a component with no readable name is reported as unknown
+# rather than dropped, because a silently unparsed manifest is how a check
+# passes without checking anything.
+exported_names="$(printf '%s\n' "$manifest_tree" | python3 -c '
+import re, sys
+
+component = re.compile(r"^\s*E: (activity|activity-alias|service|receiver|provider)\b")
+attribute = re.compile(r"^\s*A: .*?:name\(0x[0-9a-f]+\)=\"([^\"]*)\"")
+marker = re.compile(r"^\s*A: .*?:exported\(0x[0-9a-f]+\)=(.*)$")
+
+kind = None
+name = None
+for line in sys.stdin:
+    found = component.match(line)
+    if found:
+        kind, name = found.group(1), None
+        continue
+    if kind is None:
+        continue
+    found = attribute.match(line)
+    if found and name is None:
+        name = found.group(1)
+        continue
+    found = marker.match(line)
+    if found:
+        value = found.group(1).strip()
+        if value == "true" or value.endswith("0xffffffff"):
+            print(kind + " " + (name if name else "unparsed-name"))
+        kind, name = None, None
 ' | sort -u)"
-info "exported components" "$(printf '%s' "$exported_names" | tr '\n' ' ')"
-unexpected_exported="$(printf '%s\n' "$exported_names" | grep -v 'MainActivity' | grep . || true)"
-if [ -z "$unexpected_exported" ]; then
+info "exported components" "${exported_names:-<none found>}"
+allowed_exported="$(printf '%s\n' "$exported_names" | grep -E '\.?MainActivity$' | grep . || true)"
+unexpected_exported="$(printf '%s\n' "$exported_names" | grep -vE '\.?MainActivity$' | grep . || true)"
+if [ -z "$exported_names" ]; then
+  fail "exported surface" "no exported component found at all — the manifest dump was not parsed"
+elif [ -z "$unexpected_exported" ] && [ -n "$allowed_exported" ]; then
   pass "exported surface" "only the launcher activity is exported"
 else
   fail "exported surface" "unexpected exported component(s): $(printf '%s' "$unexpected_exported" | tr '\n' ' ')"
