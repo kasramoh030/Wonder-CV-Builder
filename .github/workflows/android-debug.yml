@@ -77,7 +77,7 @@ jobs:
           exit 0
 
       - name: Publish the inspection table
-        if: always() && github.event_name == 'push' && hashFiles('/tmp/inspect.txt') != ''
+        if: always() && github.event_name == 'push' && steps.inspect.outcome != 'skipped'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
