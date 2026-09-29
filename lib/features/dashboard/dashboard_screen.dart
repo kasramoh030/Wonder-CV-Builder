@@ -321,7 +321,11 @@ class _ResumeCard extends ConsumerWidget {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
-        content: Text(l10n.privacyDeleteAllBody),
+        title: Text(l10n.archiveConfirmTitle),
+        // The wording is about archiving, not deleting: a person who thinks
+        // they are about to lose a week of writing will cancel, and the whole
+        // point of archiving rather than deleting is that nothing is lost.
+        content: Text(l10n.archiveConfirmBody),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -329,7 +333,7 @@ class _ResumeCard extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l10n.delete),
+            child: Text(l10n.archive),
           ),
         ],
       ),

@@ -716,7 +716,8 @@ class StringsEn extends AppLocalizations {
   String get privacyDeleteAllTitle => 'Delete all data';
   @override
   String get privacyDeleteAllBody =>
-      'Removes every CV, the master profile, exports and settings from this device. This cannot be undone.';
+      'Removes every CV, the master profile, its saved versions, analyses and exported files from this device. '
+      'Your language, theme and market settings are kept. This cannot be undone.';
   @override
   String get privacyDeleteAllConfirm => 'Delete everything';
   @override
@@ -725,7 +726,17 @@ class StringsEn extends AppLocalizations {
   String get privacyExportDataBody =>
       'Creates a single JSON file containing everything stored on this device.';
   @override
+  String get privacyExportSaved => 'Backup saved';
+  @override
   String get privacyDataDeleted => 'All data deleted';
+
+  @override
+  String get archiveConfirmTitle => 'Archive this CV?';
+  @override
+  String get archiveConfirmBody =>
+      'It moves out of your list and can be restored later. Nothing is deleted.';
+  @override
+  String get archive => 'Archive';
 
   // ── Settings ─────────────────────────────────────────────────────────────
   @override

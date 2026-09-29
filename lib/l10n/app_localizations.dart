@@ -433,7 +433,11 @@ abstract class AppLocalizations {
   String get privacyDeleteAllConfirm;
   String get privacyExportData;
   String get privacyExportDataBody;
+  String get privacyExportSaved;
   String get privacyDataDeleted;
+  String get archiveConfirmTitle;
+  String get archiveConfirmBody;
+  String get archive;
 
   // ── Settings ─────────────────────────────────────────────────────────────
   String get settingsTitle;

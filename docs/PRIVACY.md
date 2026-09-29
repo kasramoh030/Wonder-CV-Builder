@@ -85,14 +85,15 @@ implementation must satisfy. In summary:
 
 ## User rights, as implemented
 
-| Right | Where it is in the app |
-|---|---|
-| See everything stored | Open any CV; every field the app holds is visible in the builder |
-| Correct anything | Edit any field; edits are saved automatically |
-| Export a copy | JSON backup export / PDF export (`ResumeRepository.exportLibrary`, `PdfExportService`) |
-| Delete a document | Archive (recoverable) or delete from the dashboard |
-| Delete everything | Settings → Privacy → Delete all data (`ResumeRepository.deleteEverything`) |
-| Withdraw consent | Not applicable yet; no consent is currently granted to anything |
+| Right | Where it is in the app | Status |
+|---|---|---|
+| See everything stored | Open any CV; every field the app holds is visible in the builder | shipped |
+| Correct anything | Edit any field; edits are saved automatically | shipped |
+| Export a copy | Settings → Privacy → Export all data writes one JSON file to a location the user picks (`LibraryBackupService`, `ResumeRepository.exportLibrary`); the PDF export has its own share/save/print sheet | export shipped |
+| Delete a document | Archive (recoverable) or delete from the dashboard | shipped |
+| Delete everything | Settings → Privacy → Delete all data (`DataWipeService.wipe`) | shipped |
+| Restore from a backup | `ResumeRepository.importLibrary` exists and validates the format (`LibraryBackupService.looksLikeBackup`), but no screen calls it yet | **outstanding** |
+| Withdraw consent | Not applicable yet; no consent is currently granted to anything | not applicable |
 
 ## Store declarations — Google Play Data safety
 
@@ -159,8 +160,10 @@ is enough) and put the URL in the listings.
 > **Children.** The app is not directed at children under 13.
 >
 > **Deleting your data.** Settings → Privacy → Delete all data removes every
-> CV, snapshot, analysis, export record and setting from the device. Deleting
-> the app removes everything the app stored.
+> CV, its saved versions, its analyses, the saved job adverts, the generated
+> PDF files and the copies the file picker kept in its cache. Your language,
+> theme and market preferences are kept, so the app does not walk you through
+> setup again. Deleting the app removes everything the app stored.
 >
 > **Changes.** If a future version changes any of the above — for example by
 > adding an optional online service — this policy will say so before that

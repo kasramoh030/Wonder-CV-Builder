@@ -720,7 +720,8 @@ class StringsFa extends AppLocalizations {
   String get privacyDeleteAllTitle => 'حذف همه داده‌ها';
   @override
   String get privacyDeleteAllBody =>
-      'همه رزومه‌ها، پروفایل مادر، خروجی‌ها و تنظیمات از این دستگاه پاک می‌شود. این کار قابل بازگشت نیست.';
+      'همه رزومه‌ها، پروفایل مادر، نسخه‌های ذخیره‌شده، تحلیل‌ها و فایل‌های خروجی از این دستگاه پاک می‌شود. '
+      'تنظیمات زبان، پوسته و بازار مقصد باقی می‌ماند. این کار قابل بازگشت نیست.';
   @override
   String get privacyDeleteAllConfirm => 'همه را حذف کن';
   @override
@@ -729,7 +730,17 @@ class StringsFa extends AppLocalizations {
   String get privacyExportDataBody =>
       'یک فایل JSON شامل همه داده‌های روی این دستگاه ساخته می‌شود.';
   @override
+  String get privacyExportSaved => 'نسخه پشتیبان ذخیره شد';
+  @override
   String get privacyDataDeleted => 'همه داده‌ها حذف شد';
+
+  @override
+  String get archiveConfirmTitle => 'این رزومه بایگانی شود؟';
+  @override
+  String get archiveConfirmBody =>
+      'از فهرست بیرون می‌رود و بعداً قابل بازگرداندن است. چیزی پاک نمی‌شود.';
+  @override
+  String get archive => 'بایگانی';
 
   // ── Settings ─────────────────────────────────────────────────────────────
   @override

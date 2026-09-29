@@ -723,7 +723,8 @@ class StringsDe extends AppLocalizations {
   String get privacyDeleteAllTitle => 'Alle Daten löschen';
   @override
   String get privacyDeleteAllBody =>
-      'Entfernt alle Lebensläufe, das Masterprofil, Exporte und Einstellungen von diesem Gerät. Nicht rückgängig zu machen.';
+      'Entfernt alle Lebensläufe, das Masterprofil, gespeicherte Versionen, Analysen und exportierte Dateien von diesem Gerät. '
+      'Sprache, Design und Zielmarkt bleiben erhalten. Nicht rückgängig zu machen.';
   @override
   String get privacyDeleteAllConfirm => 'Alles löschen';
   @override
@@ -732,7 +733,17 @@ class StringsDe extends AppLocalizations {
   String get privacyExportDataBody =>
       'Erstellt eine einzelne JSON-Datei mit allen auf diesem Gerät gespeicherten Daten.';
   @override
+  String get privacyExportSaved => 'Sicherung gespeichert';
+  @override
   String get privacyDataDeleted => 'Alle Daten gelöscht';
+
+  @override
+  String get archiveConfirmTitle => 'Diesen Lebenslauf archivieren?';
+  @override
+  String get archiveConfirmBody =>
+      'Er verschwindet aus der Liste und kann später zurückgeholt werden. Nichts wird gelöscht.';
+  @override
+  String get archive => 'Archivieren';
 
   // ── Settings ─────────────────────────────────────────────────────────────
   @override

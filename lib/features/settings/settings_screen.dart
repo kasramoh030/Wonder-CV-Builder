@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../domain/entities/app_settings.dart';
 import '../../domain/enums/document_options.dart';
 import '../../domain/enums/region_code.dart';
 import '../../domain/templates/resume_template.dart';
 import '../../l10n/app_localizations.dart';
+import '../export/library_backup_service.dart';
 import '../onboarding/onboarding_steps.dart';
+import 'data_wipe_service.dart';
 import 'settings_providers.dart';
 import 'widgets/settings_section.dart';
 
@@ -180,6 +183,18 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: l10n.privacyNoAccountBody,
               ),
               SettingsTile(
+                icon: Icons.file_download_outlined,
+                title: l10n.privacyExportData,
+                subtitle: l10n.privacyExportDataBody,
+                onTap: () => _exportEverything(context, ref, l10n),
+              ),
+              SettingsTile(
+                icon: Icons.delete_forever_outlined,
+                title: l10n.privacyDeleteAllTitle,
+                subtitle: l10n.privacyDeleteAllBody,
+                onTap: () => _deleteEverything(context, ref, l10n),
+              ),
+              SettingsTile(
                 icon: Icons.restart_alt_rounded,
                 title: l10n.settingsResetOnboarding,
                 onTap: controller.restartOnboarding,
@@ -205,6 +220,89 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Writes the whole library to a file the user chooses.
+  ///
+  /// Everything this app knows about the user is in one file, which is the
+  /// promise the privacy section makes. A cancelled picker is a normal
+  /// outcome, so it says nothing; a failure says so rather than looking like
+  /// a successful save.
+  Future<void> _exportEverything(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    try {
+      final Map<String, dynamic> payload =
+          await ref.read(resumeRepositoryProvider).exportLibrary();
+      final bool saved = await const LibraryBackupService().save(
+        payload: payload,
+        now: DateTime.now(),
+        dialogTitle: l10n.privacyExportData,
+      );
+      if (saved) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.privacyExportSaved)),
+        );
+      }
+    } on Object {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.exportFailed)));
+    }
+  }
+
+  /// Deletes every document and setting on the device, after confirming.
+  ///
+  /// Confirmed with the destructive wording and an error-coloured button,
+  /// because the alternative — the same accent colour as "duplicate" — is how
+  /// someone taps through a dialog without reading it. The password-style
+  /// "type DELETE to continue" ceremony is deliberately not used: it protects
+  /// against a mis-tap that a dialog already prevents, and it reads as
+  /// punishment to the one user who genuinely wants their data gone.
+  Future<void> _deleteEverything(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) async {
+    // Resolved before the dialog: reaching back for it afterwards is exactly
+    // the `use_build_context_synchronously` mistake, and the messenger is
+    // needed after two awaits.
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        final ColorScheme colors = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+          title: Text(l10n.privacyDeleteAllTitle),
+          content: Text(l10n.privacyDeleteAllBody),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: colors.error,
+                foregroundColor: colors.onError,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(l10n.privacyDeleteAllConfirm),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    await const DataWipeService().wipe(ref.read(resumeRepositoryProvider));
+    // The dashboard watches a stream from the same database, so it empties
+    // itself. Preferences survive on purpose — theme, language and market are
+    // not the CVs the user asked to delete, and wiping them would bounce the
+    // user into onboarding, which is a different action with its own button
+    // right below this one.
+    messenger.showSnackBar(SnackBar(content: Text(l10n.privacyDataDeleted)));
   }
 
   /// Guards against a font family stored by a future version that this build

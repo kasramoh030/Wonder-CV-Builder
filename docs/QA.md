@@ -25,7 +25,7 @@ tools/verify_release_artifact.sh <apk> <aab>
 |---|---|---|
 | Code generation (drift, json_serializable) | PASS | `build_runner` clean, no uncommitted generated drift |
 | `flutter analyze --fatal-warnings` | PASS | 0 errors, 0 warnings, 0 infos |
-| Unit + widget tests | PASS | 5 suites; regional rules, analyser, rule engine, builder forms, app boot |
+| Unit + widget tests | PASS | 7 suites: regional rules, analyser, rule engine, builder forms, app boot, PDF rendering, backup files |
 | Debug APK | PASS | Per push; inspected automatically |
 | Release APK (signed) | BLOCKED | Needs the four signing secrets — `docs/RELEASE.md` |
 | Release AAB (signed) | BLOCKED | Same |
@@ -42,12 +42,14 @@ tools/verify_release_artifact.sh <apk> <aab>
 | `test/domain/regional_rule_engine_test.dart` | Market order leads, user order preserved; synthetic photo policy |
 | `test/features/builder_forms_test.dart` | Every section has an editor; every record field's reader and writer agree (including clearing a date); a created record lands in the document; bullet parsing keeps a mid-sentence dash; export file names are safe and fall back correctly |
 | `test/widget/app_smoke_test.dart` | A fresh install boots into onboarding, and the app renders without overflow at 320×640 |
+| `test/pdf/pdf_rendering_test.dart` | Real documents rendered through the real engine and read back through the importer's extractor: a one-page CV with searchable contact details, a twelve-role CV spilling to a second page without shrinking the type, Persian text recovered as Persian (presentation forms folded, reading order restored), German diacritics, US Letter for the United States and never for A4, every bullet printed, and the export file-naming rules |
+| `test/features/library_backup_test.dart` | The backup file name is dated and file-system safe; the payload is indented UTF-8 JSON that survives Persian and numbers; a foreign or truncated file is refused before anything is merged |
 
 ## Not covered, and why
 
 | Area | Reason | What would cover it |
 |---|---|---|
-| PDF rendering on a device | No Flutter SDK in this environment | A widget/unit test that renders a PDF and parses it back with `pdf`'s parser; plus opening the file on a device |
+| PDF rendering on a device (opened in a viewer) | No Flutter SDK and no emulator here | Open a generated file on a real device; the engine's output is already parsed back by `test/pdf/pdf_rendering_test.dart` |
 | Import from a real PDF/DOCX | Needs fixture files and a device run | Golden files under `test/fixtures/` |
 | Jalali date rendering | Covered by unit tests only for conversion | Golden widget test with a Persian locale |
 | RTL layout at scale | Smoke test only | Golden tests in `fa` with `TextDirection.rtl` |
