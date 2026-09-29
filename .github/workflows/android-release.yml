@@ -47,6 +47,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      # First, before a JDK, a Flutter SDK or any secret is touched: does the
+      # repository carry key material or a credential? A release is the worst
+      # possible moment to find out that it does, because that is when the
+      # artifact becomes public.
+      - name: Check for key material
+        run: bash tools/check_no_key_material.sh
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

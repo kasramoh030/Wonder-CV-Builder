@@ -6,8 +6,14 @@
 # offline, and it exists because the alternative to catching this here is
 # catching it after it is published, which is never.
 #
-#   tools/check_no_key_material.sh              # check the working tree and history
+#   tools/check_no_key_material.sh                  # check the working tree
 #   tools/check_no_key_material.sh --install-hook   # also guard every commit
+#   tools/check_no_key_material.sh --dir PATH       # check a plain directory
+#
+# --dir is for something that is not a git repository: an unpacked delivery
+# archive, a build output, a folder someone sent you. It is the same checks over
+# every file in the tree, which is what lets the release packaging step prove
+# that what it just built contains no key material.
 #
 # What it looks for:
 #
@@ -29,7 +35,17 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO_ROOT"
+
+SCAN_DIR=""
+if [ "${1:-}" = "--dir" ]; then
+  SCAN_DIR="${2:-}"
+  [ -n "$SCAN_DIR" ] || { printf 'error: --dir needs a path\n' >&2; exit 2; }
+  [ -d "$SCAN_DIR" ] || { printf 'error: not a directory: %s\n' "$SCAN_DIR" >&2; exit 2; }
+  SCAN_DIR="$(cd "$SCAN_DIR" && pwd)"
+  cd "$SCAN_DIR" || exit 2
+else
+  cd "$REPO_ROOT" || exit 2
+fi
 
 failures=0
 note() { printf '  \033[32m✓\033[0m %s\n' "$1"; }
@@ -50,27 +66,43 @@ HOOK
 fi
 
 echo "Checking for key material and credentials..."
+[ -n "$SCAN_DIR" ] && echo "  (scanning the directory $SCAN_DIR)"
+
+# The file list, in whichever mode we are in. In a repository that is what git
+# tracks; in a plain directory it is everything except .git, because a delivery
+# archive has no index to consult.
+files() {
+  if [ -n "$SCAN_DIR" ]; then
+    find . -path ./.git -prune -o -type f -print | sed 's|^\./||' | sort
+  else
+    git ls-files 2>/dev/null
+  fi
+}
 
 # ── By name ──────────────────────────────────────────────────────────────────
 
 name_pattern='(\.jks|\.keystore|\.p12|\.pfx|key\.properties|\.env$|\.env\.|service-account.*\.json|google-services\.json|\.mobileprovision|\.pem|\.key$|secrets\.json|credentials\.json)'
 
 # Tracked files matter most: those are the ones already published.
-tracked="$(git ls-files 2>/dev/null | grep -Ei "$name_pattern" || true)"
+tracked="$(files | grep -Ei "$name_pattern" || true)"
 if [ -n "$tracked" ]; then
-  bad "tracked files that look like key material:
+  bad "files that look like key material:
 $(printf '%s\n' "$tracked" | sed 's/^/      /')"
 else
-  note "no tracked file is key material by name"
+  [ -n "$SCAN_DIR" ] && note "no file in the directory is key material by name" \
+                     || note "no tracked file is key material by name"
 fi
 
-# Untracked-but-present files are the next commit's problem.
-untracked="$(git ls-files --others --exclude-standard 2>/dev/null | grep -Ei "$name_pattern" || true)"
-if [ -n "$untracked" ]; then
-  bad "untracked files in the tree that look like key material (a 'git add -A' would publish them):
+# Untracked-but-present files are the next commit's problem. Only a repository
+# has that distinction; in a directory everything above was already scanned.
+if [ -z "$SCAN_DIR" ]; then
+  untracked="$(git ls-files --others --exclude-standard 2>/dev/null | grep -Ei "$name_pattern" || true)"
+  if [ -n "$untracked" ]; then
+    bad "untracked files in the tree that look like key material (a 'git add -A' would publish them):
 $(printf '%s\n' "$untracked" | sed 's/^/      /')"
-else
-  note "no untracked key material in the working tree"
+  else
+    note "no untracked key material in the working tree"
+  fi
 fi
 
 # ── By content, in tracked text files ────────────────────────────────────────
@@ -84,13 +116,13 @@ while IFS= read -r candidate; do
     '(-----BEGIN [A-Z ]*PRIVATE KEY-----|sk-(proj-)?[A-Za-z0-9_-]{32,}|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{60,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})' \
     "$candidate" 2>/dev/null | head -2 || true)"
   [ -n "$hit" ] && content_hits="$content_hits$hit"$'\n'
-done < <(git ls-files 2>/dev/null)
+done < <(files)
 
 if [ -n "${content_hits// /}" ]; then
-  bad "key-shaped strings in tracked files:
+  bad "key-shaped strings in the scanned files:
 $(printf '%s' "$content_hits" | sed 's/^/      /')"
 else
-  note "no key-shaped strings in tracked files"
+  note "no key-shaped strings in the scanned files"
 fi
 
 # A base64 blob that decodes to a JKS or PKCS12 magic number is a keystore
@@ -106,13 +138,13 @@ while IFS= read -r candidate; do
       feedfeed|cececece) base64_hits="$base64_hits$candidate"$'\n' ;;
     esac
   done < <(grep -oE '[A-Za-z0-9+/]{200,}={0,2}' "$candidate" 2>/dev/null | head -3)
-done < <(git ls-files 2>/dev/null | head -400)
+done < <(files | head -400)
 
 if [ -n "${base64_hits// /}" ]; then
   bad "base64 that decodes to a JKS/PKCS12 keystore:
 $(printf '%s' "$base64_hits" | sort -u | sed 's/^/      /')"
 else
-  note "no base64-encoded keystore in tracked files"
+  note "no base64-encoded keystore in the scanned files"
 fi
 
 # ── Passwords written as literals ────────────────────────────────────────────
@@ -135,7 +167,7 @@ credential_names='(storePassword|keyPassword|password|passwd|apiKey|api_key|apiS
 # a secret: an environment variable, a command substitution, a template
 # placeholder, an example, a row of x's.
 credential_noise='(placeholder|example|your[-_]|dummy|redacted|fake|\$\{|\$\(|\$[A-Za-z_]|getenv|process\.env|System\.getenv|<[^>]*>|[x*]{6,})'
-candidates="$(git ls-files 2>/dev/null | grep -v '^tools/check_no_key_material\.sh$' || true)"
+candidates="$(files | grep -vE '(^|/)tools/check_no_key_material\.sh$' || true)"
 
 quoted_hits="$(printf '%s\n' "$candidates" | grep -E '\.(properties|gradle|kts|ya?ml|json|dart|sh|toml|ini|cfg)$' | while read -r candidate; do
   grep -nHiE "$credential_names[[:space:]]*[:=][[:space:]]*[\"'\`][^\"'\`]{3,}[\"'\`]" "$candidate" 2>/dev/null || true
@@ -162,7 +194,7 @@ if [ "$failures" -eq 0 ]; then
   exit 0
 fi
 cat <<'EOF'
-This repository must never contain signing material or credentials.
+This tree must never contain signing material or credentials.
 A leaked signing key cannot be un-leaked: the answer is to revoke it at the
 store and start again with a new key, which is a new app listing.
 

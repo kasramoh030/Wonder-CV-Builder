@@ -55,3 +55,14 @@ key.properties
 
 # Generated brand/store output that is rebuilt by tools/generate_brand_assets.py
 # is committed on purpose (the store needs stable files), so it is not ignored.
+
+# ── Release handover packages ────────────────────────────────────────────────
+# The owner's keystore package and the built delivery archives are produced by
+# tools/create_owner_package.sh and tools/build_release_archives.sh. They are
+# handed over as files, never committed: the first one contains a signing key,
+# and the other two are reproducible from this source tree at any time.
+release-owner-package/
+deliverables/
+WONDER_CV_BUILDER_RELEASE_KEYSTORE.zip
+Wonder-CV-Builder-v1.0.0-FINAL.zip
+Wonder-CV-Builder-Android-v1.0.0.zip

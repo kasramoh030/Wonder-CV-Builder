@@ -320,6 +320,47 @@ produces. The APK is large (all three ABIs in one file); if a smaller download
 matters, `flutter build apk --release --split-per-abi` produces three APKs, but
 then you must upload all three and the store must support multi-APK uploads.
 
+## Handing the project over
+
+Four things leave the repository, and they are deliberately four separate
+files. Merging them is how a keystore ends up inside a source archive that
+somebody uploads somewhere.
+
+| File | Built by | Contains a key? | Where it goes |
+|---|---|---|---|
+| `WONDER_CV_BUILDER_RELEASE_KEYSTORE.zip` | `tools/create_owner_package.sh` | **yes** | the owner, over a channel they trust |
+| `Wonder-CV-Builder-Android-v1.0.0.zip` | `tools/build_release_archives.sh` | no | anyone rebuilding the Android project |
+| `Wonder-CV-Builder-v1.0.0-FINAL.zip` | `tools/build_release_archives.sh` | no | anyone rebuilding or reviewing the app |
+| `wonder-cv-builder-release.{aab,apk}` | CI, on a version tag | no (signed, not signable) | the stores |
+
+```bash
+# On the machine that holds the key: the owner's package, encrypted.
+tools/create_owner_package.sh --keystore ~/wonder-cv-keys/upload.jks \
+    --encrypt \
+    --backup-dir /media/usb-backup --backup-dir ~/encrypted-vault
+tools/create_owner_package.sh --check release-owner-package/WONDER_CV_BUILDER_RELEASE_KEYSTORE.zip
+
+# On any machine: the two source archives, from a commit rather than a folder.
+tools/build_release_archives.sh
+```
+
+Both packaging tools verify what they produced: the archives are opened again,
+tested, checked for every file a build needs, checked by name for anything that
+carries a secret, and then unpacked and scanned by
+`tools/check_no_key_material.sh --dir`. The owner package is checked for a
+keystore, a record, readable entries and (when asked for) encryption.
+
+The source archives come from `git archive`, not from a copy of the working
+tree, so they contain exactly the tracked files at that commit. That is what
+keeps a keystore out of them: it is untracked, and anything untracked cannot be
+in the archive. `release-owner-package/` and `deliverables/` are both
+git-ignored for the same reason.
+
+The owner package is built on the machine that holds the key. Where no key
+exists — a shared machine, an agent's sandbox — the tool still runs, with
+`--template`, and produces the record and the instructions with a note saying
+no keystore is inside. It does not generate a key to fill the gap.
+
 ## Troubleshooting
 
 **"no release signing configuration found"** — the warning in the Gradle log
