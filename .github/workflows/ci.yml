@@ -200,6 +200,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: quality
     timeout-minutes: 60
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
 
@@ -217,30 +219,126 @@ jobs:
       - run: flutter pub get
       - run: dart run build_runner build --delete-conflicting-outputs
 
+      # The Gradle output is the only place an Android build failure explains
+      # itself, and the raw Actions log needs repository sign-in to read. Each
+      # build step therefore captures its own output, and the step below
+      # publishes it as a commit comment when something fails — the same
+      # channel the quality job uses.
       - name: Build debug APK
-        run: flutter build apk --debug
+        id: apk_debug
+        continue-on-error: true
+        run: |
+          set +e
+          rm -f /tmp/android_codes.env
+          flutter build apk --debug > /tmp/apk_debug.txt 2>&1
+          echo "debug_code=$?" >> /tmp/android_codes.env
+          tail -c 60000 /tmp/apk_debug.txt
+          exit 0
 
       - name: Build release APK (split per ABI)
-        run: flutter build apk --release --split-per-abi
+        id: apk_release
+        continue-on-error: true
+        run: |
+          set +e
+          flutter build apk --release --split-per-abi > /tmp/apk_release.txt 2>&1
+          echo "release_code=$?" >> /tmp/android_codes.env
+          tail -c 60000 /tmp/apk_release.txt
+          exit 0
 
       - name: Build release AAB
-        run: flutter build appbundle --release
+        id: aab
+        continue-on-error: true
+        run: |
+          set +e
+          flutter build appbundle --release > /tmp/aab.txt 2>&1
+          echo "aab_code=$?" >> /tmp/android_codes.env
+          tail -c 60000 /tmp/aab.txt
+          exit 0
+
+      - name: Publish Android diagnostics as a commit comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          debug_code=0
+          release_code=0
+          aab_code=0
+          if [ -f /tmp/android_codes.env ]; then
+            # shellcheck disable=SC1091
+            . /tmp/android_codes.env
+          fi
+          if [ "$debug_code" = "0" ] && [ "$release_code" = "0" ] && [ "$aab_code" = "0" ]; then
+            echo "Android build passed."
+            exit 0
+          fi
+          {
+            echo "## Android diagnostics for ${GITHUB_SHA:0:7}"
+            echo
+            echo "* flutter build apk --debug exit: ${debug_code}"
+            echo "* flutter build apk --release --split-per-abi exit: ${release_code}"
+            echo "* flutter build appbundle --release exit: ${aab_code}"
+            echo
+            echo "<details><summary>toolchain</summary>"
+            echo
+            echo '```'
+            flutter --version || true
+            java -version 2>&1 || true
+            cat android/app/build.gradle.kts 2>/dev/null || cat android/app/build.gradle 2>/dev/null || true
+            echo '```'
+            echo "</details>"
+            if [ "$debug_code" != "0" ]; then
+              echo "<details open><summary>debug apk</summary>"
+              echo
+              echo '```'
+              tail -c 50000 /tmp/apk_debug.txt || true
+              echo '```'
+              echo "</details>"
+            fi
+            if [ "$release_code" != "0" ]; then
+              echo "<details open><summary>release apk</summary>"
+              echo
+              echo '```'
+              tail -c 30000 /tmp/apk_release.txt || true
+              echo '```'
+              echo "</details>"
+            fi
+            if [ "$aab_code" != "0" ]; then
+              echo "<details open><summary>app bundle</summary>"
+              echo
+              echo '```'
+              tail -c 30000 /tmp/aab.txt || true
+              echo '```'
+              echo "</details>"
+            fi
+          } > /tmp/android_report.md
+
+          payload=$(python3 -c 'import json,sys; print(json.dumps({"body": open("/tmp/android_report.md").read()}))')
+          curl -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+            -d "$payload" > /dev/null
 
       - name: Upload APK artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: apk-${{ github.sha }}
           path: build/app/outputs/flutter-apk/*.apk
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Upload AAB artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: aab-${{ github.sha }}
           path: build/app/outputs/bundle/release/*.aab
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Artifact sizes
+        if: always()
         run: |
           {
             echo "### Android artifacts"
@@ -248,3 +346,19 @@ jobs:
             ls -lh build/app/outputs/flutter-apk/*.apk build/app/outputs/bundle/release/*.aab || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if a build failed
+        if: always()
+        run: |
+          if [ ! -f /tmp/android_codes.env ]; then
+            echo "No result file was written; treating this as a failure."
+            exit 1
+          fi
+          # shellcheck disable=SC1091
+          . /tmp/android_codes.env
+          echo "debug exit: ${debug_code:-unset}"
+          echo "release exit: ${release_code:-unset}"
+          echo "aab exit: ${aab_code:-unset}"
+          if [ "${debug_code:-1}" != "0" ] || [ "${release_code:-1}" != "0" ] || [ "${aab_code:-1}" != "0" ]; then
+            exit 1
+          fi
