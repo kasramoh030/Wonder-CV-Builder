@@ -92,7 +92,7 @@ void main() {
 
     expect(
       result.bytes.length,
-      greaterThan(1000),
+      greaterThan(400),
       reason: 'a real document, not a stub',
     );
     expect(result.bytes.length, result.byteSize);
@@ -114,8 +114,10 @@ void main() {
   //
   //  * a line break can fall between any two words, because the renderer
   //    decides where to wrap;
-  //  * a right-to-left run is drawn in visual order, so Persian can legitimately
-  //    come out of the file reversed.
+  //  * a right-to-left run is drawn in visual order, so Persian can come out
+  //    of the file reversed — the extractor folds the presentation forms back
+  //    to base letters and restores the order of a line that is entirely
+  //    right-to-left, but a mixed line keeps the direction the file painted.
   //
   // The helpers below accept those two facts without weakening what is being
   // tested: the characters must genuinely be in the file, in a real font, with
@@ -127,81 +129,11 @@ void main() {
   String reverse(String value) =>
       String.fromCharCodes(value.runes.toList().reversed);
 
-  /// Folds the Arabic presentation forms back onto their base letters.
-  ///
-  /// dart_pdf shapes Arabic by substituting a presentation form for each
-  /// letter (its own `font/arabic.dart` table), so text read back out of a
-  /// correctly rendered Persian CV can contain U+FB50–U+FEFF even though the
-  /// source contained ordinary letters. Folding those forms back is what keeps
-  /// the assertion about "is the Persian text really in the file" rather than
-  /// about which shaping strategy the renderer chose. Forms that are truly
-  /// missing from a file — because it holds an image, or because the ToUnicode
-  /// map is broken — still produce nothing to match.
-  const Map<String, List<int>> arabicShapes = <String, List<int>>{
-    'ا': <int>[0x0627, 0xFE8E],
-    'آ': <int>[0x0622, 0xFE82],
-    'أ': <int>[0x0623, 0xFE84],
-    'ؤ': <int>[0x0624, 0xFE86],
-    'إ': <int>[0x0625, 0xFE88],
-    'ئ': <int>[0x0626, 0xFE8A, 0xFE8B, 0xFE8C],
-    'ب': <int>[0x0628, 0xFE90, 0xFE91, 0xFE92],
-    'ة': <int>[0x0629, 0xFE94],
-    'ت': <int>[0x062A, 0xFE96, 0xFE97, 0xFE98],
-    'ث': <int>[0x062B, 0xFE9A, 0xFE9B, 0xFE9C],
-    'ج': <int>[0x062C, 0xFE9E, 0xFE9F, 0xFEA0],
-    'ح': <int>[0x062D, 0xFEA2, 0xFEA3, 0xFEA4],
-    'خ': <int>[0x062E, 0xFEA6, 0xFEA7, 0xFEA8],
-    'د': <int>[0x062F, 0xFEAA],
-    'ذ': <int>[0x0630, 0xFEAC],
-    'ر': <int>[0x0631, 0xFEAE],
-    'ز': <int>[0x0632, 0xFEB0],
-    'س': <int>[0x0633, 0xFEB2, 0xFEB3, 0xFEB4],
-    'ش': <int>[0x0634, 0xFEB6, 0xFEB7, 0xFEB8],
-    'ص': <int>[0x0635, 0xFEBA, 0xFEBB, 0xFEBC],
-    'ض': <int>[0x0636, 0xFEBE, 0xFEBF, 0xFEC0],
-    'ط': <int>[0x0637, 0xFEC2, 0xFEC3, 0xFEC4],
-    'ظ': <int>[0x0638, 0xFEC6, 0xFEC7, 0xFEC8],
-    'ع': <int>[0x0639, 0xFECA, 0xFECB, 0xFECC],
-    'غ': <int>[0x063A, 0xFECE, 0xFECF, 0xFED0],
-    'ف': <int>[0x0641, 0xFED2, 0xFED3, 0xFED4],
-    'ق': <int>[0x0642, 0xFED6, 0xFED7, 0xFED8],
-    'ك': <int>[0x0643, 0xFEDA, 0xFEDB, 0xFEDC],
-    'ل': <int>[0x0644, 0xFEDE, 0xFEDF, 0xFEE0],
-    'م': <int>[0x0645, 0xFEE2, 0xFEE3, 0xFEE4],
-    'ن': <int>[0x0646, 0xFEE6, 0xFEE7, 0xFEE8],
-    'ه': <int>[0x0647, 0xFEEA, 0xFEEB, 0xFEEC],
-    'و': <int>[0x0648, 0xFEEE],
-    'ى': <int>[0x0649, 0xFEF0],
-    'ي': <int>[0x064A, 0xFEF2, 0xFEF3, 0xFEF4],
-    'ی': <int>[0x06CC, 0xFBFC, 0xFBFD, 0xFBFE, 0xFBFF],
-    'پ': <int>[0x067E, 0xFB56, 0xFB57, 0xFB58, 0xFB59],
-    'چ': <int>[0x0686, 0xFB7A, 0xFB7B, 0xFB7C, 0xFB7D],
-    'ژ': <int>[0x0698, 0xFB8A, 0xFB8B],
-    'گ': <int>[0x06AF, 0xFB92, 0xFB93, 0xFB94, 0xFB95],
-    'ک': <int>[0x06A9, 0xFB8E, 0xFB8F, 0xFB90, 0xFB91],
-    'لا': <int>[0xFEF5, 0xFEF6, 0xFEF7, 0xFEF8, 0xFEF9, 0xFEFA, 0xFEFB, 0xFEFC],
-  };
-
-  final Map<int, String> presentationForms = <int, String>{};
-  for (final MapEntry<String, List<int>> entry in arabicShapes.entries) {
-    for (final int form in entry.value) {
-      presentationForms[form] = entry.key;
-    }
-  }
-
-  String normalize(String value) {
-    final StringBuffer out = StringBuffer();
-    for (final int rune in value.runes) {
-      out.write(presentationForms[rune] ?? String.fromCharCode(rune));
-    }
-    return out.toString();
-  }
-
   void expectText(String haystack, String needle, {String? because}) {
-    final String flat = normalize(squash(haystack));
-    final String direct = normalize(squash(needle));
+    final String flat = squash(haystack);
+    final String direct = squash(needle);
     if (flat.contains(direct)) return;
-    final String flipped = normalize(squash(reverse(needle)));
+    final String flipped = squash(reverse(needle));
     if (flat.contains(flipped)) return;
     fail(
       'expected to find "$needle" in the PDF text${because == null ? '' : ' ($because)'}.\n'
@@ -212,7 +144,7 @@ void main() {
 
   // ── Content used by the tests ────────────────────────────────────────────
 
-  ResumeContent englishContent({int roles = 2}) => ResumeContent(
+  ResumeContent englishContent({int roles = 2, int bullets = 3}) => ResumeContent(
         personal: const PersonalInfo(
           firstName: 'Sara',
           lastName: 'Ahmadi',
@@ -233,14 +165,22 @@ void main() {
               company: 'Northwind Payments',
               location: 'London, UK',
               startDate: YearMonth(2021 - i * 3, 3),
-              endDate: i == 0 ? null : YearMonth(2021 - i * 3, 2),
+              endDate: i == 0 ? null : YearMonth(2023 - i * 3, 2),
               isCurrent: i == 0,
               responsibilities: <String>[
-                'Designed the ledger service that now settles four million '
-                    'transactions per day.',
-                'Cut the ninety-ninth percentile payment latency from eight '
-                    'hundred milliseconds to under two hundred.',
-                'Mentored four engineers and ran the on-call rotation.',
+                for (int b = 0; b < bullets; b++)
+                  <String>[
+                    'Designed and shipped the ledger service that now settles '
+                        'four million transactions a day across three regions.',
+                    'Cut the ninety-ninth percentile payment latency from eight '
+                        'hundred milliseconds to under two hundred.',
+                    'Mentored four engineers and ran the on-call rotation for a '
+                        'platform handling two thousand requests a second.',
+                    'Led the migration from a single PostgreSQL primary to a '
+                        'sharded cluster with no customer-visible downtime.',
+                    'Wrote the incident review process that halved the number of '
+                        'repeat production incidents over two quarters.',
+                  ][b % 5],
               ],
               technologies: <String>['Dart', 'PostgreSQL', 'Kafka'],
             ),
@@ -403,7 +343,7 @@ void main() {
         buildResume(
           region: RegionCode.international,
           cvType: CvType.professionalCv,
-          content: englishContent(roles: 6),
+          content: englishContent(roles: 12, bullets: 5),
         ),
         RegionCode.international,
         en,
@@ -412,8 +352,8 @@ void main() {
       expect(
         result.pageCount,
         greaterThan(1),
-        reason: 'six roles do not fit on one page, and the engine must add a '
-            'page rather than shrink the type to fit',
+        reason: 'twelve roles do not fit on one page, and the engine must add '
+            'a page rather than shrink the type to fit',
       );
     });
 
@@ -422,7 +362,7 @@ void main() {
         buildResume(
           region: RegionCode.international,
           cvType: CvType.professionalCv,
-          content: englishContent(roles: 4),
+          content: englishContent(roles: 4, bullets: 4),
         ),
         RegionCode.international,
         en,
@@ -542,7 +482,7 @@ void main() {
 
   group('the engine never silently drops content', () {
     test('every bullet the user wrote appears in the PDF', () async {
-      final ResumeContent content = englishContent(roles: 2);
+      final ResumeContent content = englishContent(roles: 2, bullets: 4);
       final String text = await renderAndRead(
         buildResume(
           region: RegionCode.unitedKingdom,

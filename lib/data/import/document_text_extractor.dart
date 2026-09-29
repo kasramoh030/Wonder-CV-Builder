@@ -235,8 +235,107 @@ class PdfTextExtractor {
       if (text.trim().isNotEmpty) out.write(text);
     }
 
-    return _tidy(out.toString());
+    return _restoreReadingOrder(_tidy(out.toString()));
   }
+
+  // ── Reading order and script ─────────────────────────────────────────────
+
+  /// The presentation forms a shaped Arabic-script letter can take, run-length
+  /// encoded as (first code point, how many, the base letters).
+  ///
+  /// Generated from the Unicode compatibility decomposition of
+  /// U+FB50–U+FBB1 and U+FE70–U+FEFF, which is where the letter forms a
+  /// shaping engine substitutes live. The ligature ranges above U+FBB1 — whole
+  /// words such as the Allah ligature — are deliberately absent: a CV does not
+  /// contain them, and inventing letters for them would be a guess rather than
+  /// a decoding.
+  static const List<(int, int, String)> _arabicFormRuns =
+      <(int, int, String)>[
+    (0xFB50, 2, 'ٱ'),
+    (0xFB52, 4, 'ٻ'),
+    (0xFB56, 4, 'پ'),
+    (0xFB5A, 4, 'ڀ'),
+    (0xFB5E, 4, 'ٺ'),
+    (0xFB62, 4, 'ٿ'),
+    (0xFB66, 4, 'ٹ'),
+    (0xFB6A, 4, 'ڤ'),
+    (0xFB6E, 4, 'ڦ'),
+    (0xFB72, 4, 'ڄ'),
+    (0xFB76, 4, 'ڃ'),
+    (0xFB7A, 4, 'چ'),
+    (0xFB7E, 4, 'ڇ'),
+    (0xFB82, 2, 'ڍ'),
+    (0xFB84, 2, 'ڌ'),
+    (0xFB86, 2, 'ڎ'),
+    (0xFB88, 2, 'ڈ'),
+    (0xFB8A, 2, 'ژ'),
+    (0xFB8C, 2, 'ڑ'),
+    (0xFB8E, 4, 'ک'),
+    (0xFB92, 4, 'گ'),
+    (0xFB96, 4, 'ڳ'),
+    (0xFB9A, 4, 'ڱ'),
+    (0xFB9E, 2, 'ں'),
+    (0xFBA0, 4, 'ڻ'),
+    (0xFBA4, 2, 'ۀ'),
+    (0xFBA6, 4, 'ہ'),
+    (0xFBAA, 4, 'ھ'),
+    (0xFBAE, 2, 'ے'),
+    (0xFBB0, 2, 'ۓ'),
+    (0xFE70, 1, ' ً'),
+    (0xFE71, 1, 'ـً'),
+    (0xFE72, 1, ' ٌ'),
+    (0xFE74, 1, ' ٍ'),
+    (0xFE76, 1, ' َ'),
+    (0xFE77, 1, 'ـَ'),
+    (0xFE78, 1, ' ُ'),
+    (0xFE79, 1, 'ـُ'),
+    (0xFE7A, 1, ' ِ'),
+    (0xFE7B, 1, 'ـِ'),
+    (0xFE7C, 1, ' ّ'),
+    (0xFE7D, 1, 'ـّ'),
+    (0xFE7E, 1, ' ْ'),
+    (0xFE7F, 1, 'ـْ'),
+    (0xFE80, 1, 'ء'),
+    (0xFE81, 2, 'آ'),
+    (0xFE83, 2, 'أ'),
+    (0xFE85, 2, 'ؤ'),
+    (0xFE87, 2, 'إ'),
+    (0xFE89, 4, 'ئ'),
+    (0xFE8D, 2, 'ا'),
+    (0xFE8F, 4, 'ب'),
+    (0xFE93, 2, 'ة'),
+    (0xFE95, 4, 'ت'),
+    (0xFE99, 4, 'ث'),
+    (0xFE9D, 4, 'ج'),
+    (0xFEA1, 4, 'ح'),
+    (0xFEA5, 4, 'خ'),
+    (0xFEA9, 2, 'د'),
+    (0xFEAB, 2, 'ذ'),
+    (0xFEAD, 2, 'ر'),
+    (0xFEAF, 2, 'ز'),
+    (0xFEB1, 4, 'س'),
+    (0xFEB5, 4, 'ش'),
+    (0xFEB9, 4, 'ص'),
+    (0xFEBD, 4, 'ض'),
+    (0xFEC1, 4, 'ط'),
+    (0xFEC5, 4, 'ظ'),
+    (0xFEC9, 4, 'ع'),
+    (0xFECD, 4, 'غ'),
+    (0xFED1, 4, 'ف'),
+    (0xFED5, 4, 'ق'),
+    (0xFED9, 4, 'ك'),
+    (0xFEDD, 4, 'ل'),
+    (0xFEE1, 4, 'م'),
+    (0xFEE5, 4, 'ن'),
+    (0xFEE9, 4, 'ه'),
+    (0xFEED, 2, 'و'),
+    (0xFEEF, 2, 'ى'),
+    (0xFEF1, 4, 'ي'),
+    (0xFEF5, 2, 'لآ'),
+    (0xFEF7, 2, 'لأ'),
+    (0xFEF9, 2, 'لإ'),
+    (0xFEFB, 2, 'لا'),
+      ];
 
   // ── Object index ─────────────────────────────────────────────────────────
 
@@ -729,6 +828,97 @@ class PdfTextExtractor {
     if (byte >= 32 && byte != 127) return String.fromCharCode(byte);
     return ' ';
   }
+
+  /// Turns what a PDF stores back into what the user typed.
+  ///
+  /// A PDF does not hold text, it holds glyphs: already shaped (each Arabic
+  /// letter replaced by the form that joins with its neighbours) and already
+  /// ordered the way the line is painted, which for a right-to-left line is
+  /// the reverse of the way it is read. That is what a reader needs and
+  /// exactly what an importer must undo — without this step an imported
+  /// Persian CV reads "ﺍﺭاس" where the user wrote "سارا", and every keyword
+  /// and analysis check afterwards operates on the wrong characters.
+  static String _restoreReadingOrder(String text) =>
+      text.split('\n').map(_restoreReadingOrderFor).join('\n');
+
+  static String _restoreReadingOrderFor(String line) {
+    final String folded = _foldArabicForms(line);
+    if (!_isRightToLeftLine(folded)) return folded;
+
+    final List<int> runes = folded.runes.toList().reversed.toList();
+
+    // A number reads left to right even inside a right-to-left line, so each
+    // run of digits is turned back the right way round after the reversal.
+    int index = 0;
+    while (index < runes.length) {
+      if (!_isDigit(runes[index])) {
+        index++;
+        continue;
+      }
+      int end = index;
+      while (end < runes.length && _isDigit(runes[end])) {
+        end++;
+      }
+      runes.replaceRange(index, end, runes.sublist(index, end).reversed);
+      index = end;
+    }
+
+    return String.fromCharCodes(runes);
+  }
+
+  static String _foldArabicForms(String text) {
+    bool needsFolding = false;
+    for (final int rune in text.runes) {
+      if (_arabicForms.containsKey(rune)) {
+        needsFolding = true;
+        break;
+      }
+    }
+    if (!needsFolding) return text;
+
+    final StringBuffer out = StringBuffer();
+    for (final int rune in text.runes) {
+      out.write(_arabicForms[rune] ?? String.fromCharCode(rune));
+    }
+    return out.toString();
+  }
+
+  static final Map<int, String> _arabicForms = <int, String>{
+    for (final (int first, int count, String base) in _arabicFormRuns)
+      for (int code = first; code < first + count; code++) code: base,
+  };
+
+  /// Whether a line should be read from the other end.
+  ///
+  /// True only when every character in it is Arabic script, punctuation,
+  /// whitespace or an Arabic-Indic digit. A line with Latin letters or ASCII
+  /// digits is mixed, and a mixed line's visual order comes from two
+  /// directions interleaved — reversing it would corrupt the Latin half of
+  /// almost every Persian CV, so it is left as the file painted it.
+  static bool _isRightToLeftLine(String line) {
+    bool sawArabic = false;
+    for (final int rune in line.runes) {
+      if (_isLatinLetter(rune) || (rune >= 0x30 && rune <= 0x39)) return false;
+      if (_isArabicScript(rune)) sawArabic = true;
+    }
+    return sawArabic;
+  }
+
+  static bool _isArabicScript(int rune) =>
+      (rune >= 0x0600 && rune <= 0x06FF) ||
+      (rune >= 0x0750 && rune <= 0x077F) ||
+      (rune >= 0x08A0 && rune <= 0x08FF) ||
+      (rune >= 0xFB50 && rune <= 0xFEFF);
+
+  static bool _isLatinLetter(int rune) =>
+      (rune >= 0x41 && rune <= 0x5A) ||
+      (rune >= 0x61 && rune <= 0x7A) ||
+      (rune >= 0xC0 && rune <= 0x24F);
+
+  static bool _isDigit(int rune) =>
+      (rune >= 0x30 && rune <= 0x39) ||
+      (rune >= 0x0660 && rune <= 0x0669) ||
+      (rune >= 0x06F0 && rune <= 0x06F9);
 
   /// Collapses the newline noise the operator scan produces while keeping
   /// paragraph breaks intact.
