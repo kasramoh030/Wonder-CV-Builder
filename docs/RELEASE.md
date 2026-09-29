@@ -62,7 +62,12 @@ The script:
 - never echoes a password, never writes one to a log, and prints only what is
   safe to share: the path, the alias and the certificate's SHA-256;
 - prints the exact `gh secret set` commands, each reading from a file rather
-  than a `--body` argument, so the values never reach your terminal scrollback.
+  than a `--body` argument, so the values never reach your terminal scrollback;
+- prints the credentials record to keep — keystore path, alias, application id,
+  version, certificate fingerprint, backup slots — with the two passwords named
+  as fields rather than filled in, so the page you keep holds no secret;
+- reads the fingerprint from the keystore itself (both `keytool` spellings, JDK
+  8 and newer) and tells you that an empty pin protects nothing if it cannot.
 
 You choose the keystore password, the key alias (`upload` by default) and the
 key password. Choose a strong keystore password and put it in your password

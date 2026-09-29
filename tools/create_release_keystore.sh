@@ -85,28 +85,74 @@ EOF
   fi
 }
 
+# ── The temporary password files ─────────────────────────────────────────────
+#
+# keytool reads the password from a *file* rather than a command-line argument,
+# which is what keeps it out of `ps`, /proc and the shell history. Those files
+# exist for the lifetime of the run and are shredded on the way out. The state
+# is global on purpose: an EXIT trap that reads a variable local to a function
+# runs after that variable is out of scope, and a script that promises to shred
+# your password while leaving it in /tmp is worse than one that never promised.
+SECRETS_DIR=""
+
+# Read from the project rather than hardcoding it, so the record the owner keeps
+# cannot disagree with the version that was actually built.
+project_version() {
+  local version
+  version="$(sed -n 's/^version:[[:space:]]*//p' "$REPO_ROOT/pubspec.yaml" 2>/dev/null | head -1)"
+  printf '%s' "${version:-see pubspec.yaml}"
+}
+
+shred_secrets() {
+  if [ -n "${SECRETS_DIR:-}" ] && [ -d "$SECRETS_DIR" ]; then
+    if command -v shred >/dev/null 2>&1; then
+      shred -u "$SECRETS_DIR"/* 2>/dev/null || true
+    fi
+    rm -rf "$SECRETS_DIR"
+  fi
+  SECRETS_DIR=""
+}
+
 # ── Reading a password without echoing it or leaking it ─────────────────────
 
+#
+# $2, if it is the word "allow_empty", accepts a bare Enter — used for the key
+# password, where an empty answer means "the same password as the keystore".
+# Returns non-zero if the input ends (Ctrl-D, or stdin redirected from
+# something empty) instead of asking again forever, because a prompt that
+# cannot be answered is worse than one that fails.
 read_password() {
-  local prompt="$1"
+  local prompt="$1" allow_empty="${2:-0}"
   local value
   while true; do
     printf '%s' "$prompt" >&2
-    IFS= read -r -s value
+    if ! IFS= read -r -s value; then
+      printf '\n' >&2
+      printf 'Input ended before a password was read. Run this in a terminal.\n' >&2
+      return 1
+    fi
     printf '\n' >&2
+    if [ "$allow_empty" = "allow_empty" ] && [ -z "$value" ]; then
+      return 0
+    fi
     if [ "${#value}" -lt "${MIN_PASSWORD_LENGTH}" ]; then
-      warn "at least ${MIN_PASSWORD_LENGTH} characters, please (got ${#value})."
+      # To stderr, and this is not cosmetic: the return value of this function
+      # is captured with $( ), so anything written to stdout is prepended to
+      # the password. A rejected attempt used to blend its own warning into
+      # the value that was finally stored, producing a keystore whose password
+      # was not the one the owner had typed.
+      warn "at least ${MIN_PASSWORD_LENGTH} characters, please (got ${#value})." >&2
       continue
     fi
     printf '%s' "$value"
-    return
+    return 0
   done
 }
 
 confirm_password() {
   local first="$1"
   local second
-  second="$(read_password 'Repeat it: ')"
+  second="$(read_password 'Repeat it: ')" || die "input ended before the password was confirmed."
   [ "$first" = "$second" ] || die "the two passwords differ."
 }
 
@@ -171,14 +217,18 @@ EOF
   hr
   bold "Keystore password"
   local store_password
-  store_password="$(read_password 'Keystore password: ')"
+  store_password="$(read_password 'Keystore password: ')" \
+    || die "the keystore password was not read; run this script in a terminal."
   confirm_password "$store_password"
 
   hr
   bold "Key password"
   printf 'Press Enter to use the same password for the key itself.\n'
   local key_password
-  key_password="$(read_password 'Key password: ')"
+  key_password="$(read_password 'Key password: ' allow_empty)" \
+    || die "the key password was not read; run this script in a terminal."
+  # Enter here means "use the keystore password for the key too", which is what
+  # the prompt promises and what most keystores do.
   [ -n "$key_password" ] || key_password="$store_password"
   if [ "$key_password" != "$store_password" ]; then
     confirm_password "$key_password"
@@ -187,19 +237,10 @@ EOF
   # The password files exist for the lifetime of this run only: keytool reads
   # them instead of a command-line argument, which is what keeps the password
   # out of `ps`, /proc, and the shell history.
-  local secrets_dir
-  secrets_dir="$(mktemp -d)"
-  local store_pw_file="$secrets_dir/store.pw"
-  local key_pw_file="$secrets_dir/key.pw"
-  cleanup() {
-    if [ -d "$secrets_dir" ]; then
-      if command -v shred >/dev/null 2>&1; then
-        shred -u "$store_pw_file" "$key_pw_file" 2>/dev/null || true
-      fi
-      rm -rf "$secrets_dir"
-    fi
-  }
-  trap cleanup EXIT
+  SECRETS_DIR="$(mktemp -d)"
+  local store_pw_file="$SECRETS_DIR/store.pw"
+  local key_pw_file="$SECRETS_DIR/key.pw"
+  trap shred_secrets EXIT
   printf '%s' "$store_password" >"$store_pw_file"
   printf '%s' "$key_password" >"$key_pw_file"
 
@@ -232,6 +273,12 @@ EOF
 
   chmod 600 "$keystore"
 
+  # The key exists now, so the passwords are no longer needed. Shred them here
+  # rather than waiting for exit, to keep the window in which they sit in /tmp
+  # as short as the run allows. The EXIT trap stays as the backstop for every
+  # other path out of this function, including a failure.
+  shred_secrets
+
   # key.properties points this machine at the key. It lives beside the keystore
   # (outside the repository) and is also git-ignored inside the repository, so
   # there is no path by which it reaches a commit.
@@ -260,26 +307,25 @@ check() {
   keystore="${keystore/#\~/$HOME}"
   [ -f "$keystore" ] || die "no such file: $keystore"
 
-  printf 'Keystore password: ' >&2
   local store_password
-  IFS= read -r -s store_password
-  printf '\n' >&2
+  store_password="$(read_password 'Keystore password: ')" \
+    || die "the keystore password was not read; run this script in a terminal."
 
-  local secrets_dir
-  secrets_dir="$(mktemp -d)"
-  trap 'rm -rf "$secrets_dir"' EXIT
-  printf '%s' "$store_password" >"$secrets_dir/store.pw"
+  SECRETS_DIR="$(mktemp -d)"
+  trap shred_secrets EXIT
+  printf '%s' "$store_password" >"$SECRETS_DIR/store.pw"
 
   hr
   bold "Keystore contents"
-  keytool -list -v -keystore "$keystore" -storepass:file "$secrets_dir/store.pw" \
+  keytool -list -v -keystore "$keystore" -storepass:file "$SECRETS_DIR/store.pw" \
     | sed -n 's/^Alias name: /  alias:       /p;s/^Valid from: /  valid from:  /p'
   hr
 
   local fingerprint
-  fingerprint="$(certificate_fingerprint "$keystore" "$secrets_dir/store.pw")"
+  fingerprint="$(certificate_fingerprint "$keystore" "$SECRETS_DIR/store.pw")"
   [ -n "$fingerprint" ] || die "could not read the certificate fingerprint."
   ok "SHA-256: $fingerprint"
+  shred_secrets
   cat <<'EOF'
 
 This fingerprint is not a secret: it is what a store shows for the app, and
@@ -293,18 +339,21 @@ refused before it is uploaded. Keep it with the release notes.
   Key alias:      (printed above)
   Key pass:       <in your password manager>
   App id:         dev.cvpro.builder
-  Version:        see pubspec.yaml (1.0.0+1)
+  Version:        (printed above, read from pubspec.yaml)
   Cert SHA-256:   <printed above>
 EOF
 }
 
 # ── Shared reporting ─────────────────────────────────────────────────────────
 
-# The interpreter and platform differ, so both spellings are tried.
+# JDK 9 and later print "SHA256: AA:BB:…"; JDK 8 prints "Certificate
+# fingerprint (SHA-256): AA:BB:…". Both are read, because a fingerprint that
+# cannot be read is recorded as an empty pin, and an empty pin protects
+# nothing.
 certificate_fingerprint() {
   local keystore="$1" password_file="$2"
   keytool -list -v -keystore "$keystore" -storepass:file "$password_file" 2>/dev/null \
-    | sed -n 's/^[[:space:]]*SHA256: //p' \
+    | sed -n 's/^[[:space:]]*SHA256: //p;s/^[[:space:]]*Certificate fingerprint (SHA-256): //p' \
     | head -1 \
     | tr -d ':' \
     | tr 'A-F' 'a-f'
@@ -312,7 +361,7 @@ certificate_fingerprint() {
 
 report() {
   local keystore="$1" target_dir="$2"
-  local fingerprint
+  local fingerprint pin_line
   fingerprint="$(certificate_fingerprint "$keystore" "$target_dir/key.properties")" || true
   # key.properties holds "storePassword=…", not the raw password file keytool
   # wants, so fall back to a direct read for the fingerprint.
@@ -324,11 +373,40 @@ report() {
     rm -f "$tmp"
   fi
 
+  # A pin is only worth having if it carries a fingerprint. Rather than print a
+  # command that would store an empty value and quietly protect nothing, say
+  # what to do instead.
+  if [ -n "$fingerprint" ]; then
+    pin_line="   gh variable set ANDROID_CERT_SHA256 --body \"$fingerprint\""
+  else
+    pin_line='   The fingerprint could not be read here. Get it with
+     keytool -list -v -keystore <your keystore>   (the SHA256 line),
+   then: gh variable set ANDROID_CERT_SHA256 --body <hex without colons>'
+  fi
+
   hr
   bold "Keystore created"
   printf '  file:  %s\n' "$keystore"
   printf '  alias: %s\n' "$KEY_ALIAS"
   [ -n "$fingerprint" ] && printf '  SHA-256: %s\n' "$fingerprint"
+  hr
+
+  # The record the owner keeps. It names every field that is needed to publish
+  # or to recover, and holds no secret: the two passwords are described rather
+  # than printed, because a record that contains them is not keepable.
+  cat <<EOF
+$(bold 'Owner release credentials — keep this record')
+  Keystore file:  $keystore
+  Keystore pass:  <the password you just typed, from your password manager>
+  Key alias:      $KEY_ALIAS
+  Key pass:       <the key password you typed>
+  Application id: dev.cvpro.builder
+  Version:        $(project_version)
+  Cert SHA-256:   ${fingerprint:-<could not be read here — see step 5>}
+  Created:        $(date -u '+%Y-%m-%d %H:%M UTC')
+  Backup 1:       <where the first copy went>
+  Backup 2:       <and the second, in a different place>
+EOF
   hr
 
   cat <<EOF
@@ -352,7 +430,7 @@ $(bold '4. Point this machine at the key for local release builds.')
    (It is git-ignored, and an env-var alternative is in docs/RELEASE.md.)
 
 $(bold '5. Record the fingerprint in the repository — it is not a secret.')
-   gh variable set ANDROID_CERT_SHA256 --body "$fingerprint"
+$pin_line
    The release workflow then refuses to publish an artifact signed with any
    other key.
 EOF
@@ -380,8 +458,8 @@ secret_commands() {
   local keystore="$1" target_dir="$2"
   local base64_hint="$target_dir/keystore.base64"
   cat <<EOF
-   # Reads from a file: the value never appears in your shell history, in
-   # \`ps\`, or in this terminal.
+   # Every line reads from a file, so no value appears in your shell history,
+   # in \`ps\`, or on the screen.
    base64 -w0 "$keystore" > "$base64_hint" 2>/dev/null \\
      || base64 -i "$keystore" | tr -d '\\n' > "$base64_hint"
    chmod 600 "$base64_hint"
@@ -391,12 +469,14 @@ secret_commands() {
    gh secret set KEY_ALIAS           --body "$KEY_ALIAS"
    gh secret set KEY_PASSWORD        < "$target_dir/.key-password"
 
-   # Before running the password lines, write them into those two files once
-   # (they are git-ignored and 0600):
-   #   printf '%s' 'your keystore password' > "$target_dir/.store-password"
-   #   printf '%s' 'your key password'      > "$target_dir/.key-password"
-   #   chmod 600 "$target_dir"/.store-password "$target_dir"/.key-password
-   # Then delete them, and the base64 file, when the secrets are set.
+   # The two password files do not exist yet: this script kept your passwords
+   # in memory and shredded its own copies. Write them once, by typing rather
+   # than pasting, so they stay out of your shell history and off the screen:
+   #   read -rs -p 'keystore password: ' p && printf '%s' "\$p" > "$target_dir/.store-password"
+   #   read -rs -p 'key password: '      p && printf '%s' "\$p" > "$target_dir/.key-password"
+   #   unset p
+   # Then set the two secrets above, and when all four are set:
+   #   rm -f "$base64_hint" "$target_dir/.store-password" "$target_dir/.key-password"
 EOF
 }
 
