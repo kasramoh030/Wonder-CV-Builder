@@ -1,0 +1,119 @@
+name: Analyze
+
+on:
+  push:
+    branches: ["arena/**", "main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: analyze-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.5"
+
+jobs:
+  analyze:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      # drift and json_serializable generate code the analyser needs to see,
+      # so code generation must succeed before analysis means anything.
+      - name: Generate code
+        id: codegen
+        continue-on-error: true
+        run: |
+          set +e
+          rm -f /tmp/codes.env
+          dart run build_runner build --delete-conflicting-outputs > /tmp/gen.txt 2>&1
+          echo "gen_code=$?" >> /tmp/codes.env
+          tail -c 20000 /tmp/gen.txt
+          exit 0
+
+      - name: Static analysis
+        id: analyze
+        continue-on-error: true
+        run: |
+          set +e
+          flutter analyze --fatal-warnings --no-fatal-infos > /tmp/analyze.txt 2>&1
+          echo "analyze_code=$?" >> /tmp/codes.env
+          cat /tmp/analyze.txt
+          exit 0
+
+      # The raw Actions log needs repository sign-in to read; a commit comment
+      # is readable through the ordinary contents API by anyone (or anything)
+      # working from a shell.
+      - name: Publish diagnostics as a commit comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          gen_code=0
+          analyze_code=0
+          if [ -f /tmp/codes.env ]; then
+            # shellcheck disable=SC1091
+            . /tmp/codes.env
+          fi
+          if [ "$gen_code" = "0" ] && [ "$analyze_code" = "0" ]; then
+            echo "Analysis passed."
+            exit 0
+          fi
+          {
+            echo "## Analyze diagnostics for ${GITHUB_SHA:0:7}"
+            echo
+            echo "* build_runner exit: ${gen_code}"
+            echo "* flutter analyze exit: ${analyze_code}"
+            echo
+            echo "<details open><summary>build_runner</summary>"
+            echo
+            echo '```'
+            tail -c 20000 /tmp/gen.txt || true
+            echo '```'
+            echo "</details>"
+            echo
+            echo "<details open><summary>flutter analyze</summary>"
+            echo
+            echo '```'
+            head -c 24000 /tmp/analyze.txt || true
+            echo '```'
+            echo "</details>"
+          } > /tmp/report.md
+          payload=$(python3 -c 'import json; print(json.dumps({"body": open("/tmp/report.md").read()}))')
+          curl -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+            -d "$payload" > /dev/null
+
+      - name: Fail if analysis did not pass
+        if: always()
+        run: |
+          if [ ! -f /tmp/codes.env ]; then
+            echo "No result file was written; treating this as a failure."
+            exit 1
+          fi
+          # shellcheck disable=SC1091
+          . /tmp/codes.env
+          echo "codegen exit: ${gen_code:-unset}"
+          echo "analyze exit: ${analyze_code:-unset}"
+          if [ "${gen_code:-1}" != "0" ] || [ "${analyze_code:-1}" != "0" ]; then
+            exit 1
+          fi

@@ -46,3 +46,12 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# ── Signing material: never commit a keystore or its passwords ───────────────
+key.properties
+*.jks
+*.keystore
+!.github/keys/**
+
+# Generated brand/store output that is rebuilt by tools/generate_brand_assets.py
+# is committed on purpose (the store needs stable files), so it is not ignored.

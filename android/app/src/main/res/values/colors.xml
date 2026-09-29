@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The two colours the Android window needs before Flutter has drawn a frame:
+    the brand seed (0xFF4F46E5, the same value as AppColors.brandSeed) and the
+    canvas the app paints behind its own surface.
+-->
+<resources>
+    <color name="brand_seed">#4F46E5</color>
+    <color name="brand_seed_deep">#372FC7</color>
+    <color name="canvas_light">#F6F7FB</color>
+    <color name="canvas_dark">#0E1116</color>
+</resources>

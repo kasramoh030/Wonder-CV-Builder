@@ -1,23 +1,32 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!--
-        CV Pro is offline-first: building, analysing and exporting a CV needs
-        no permission at all. INTERNET is declared because two *optional*
-        features talk to a server the user chooses:
 
-          * the AI assistant (user-supplied API key, sent only with explicit
-            per-request consent), and
+    <!--
+        Wonder CV Builder is offline-first: writing, analysing and exporting a
+        CV needs no permission at all. INTERNET is declared because two
+        *optional* features talk to a server the user chooses:
+
+          * the AI assistant (a key the user supplies; a request is sent only
+            with explicit per-request consent), and
           * the reachability probe behind the online/offline indicator.
 
-        No storage, location, contacts, camera or notification permission is
-        requested. Photo and file import use the system picker, which grants
-        access to a single document without any manifest permission.
+        No storage, location, contacts, camera, microphone or notification
+        permission is requested. Photo and file import use the system picker,
+        which grants access to one document chosen by the user without any
+        manifest permission.
     -->
-    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="CV Pro"
         android:name="android.app.Application"
-        android:icon="@mipmap/ic_launcher">
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:enableOnBackInvokedCallback="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
